@@ -87,7 +87,7 @@ use warnings;
 use warnings::register;
 use Carp;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use Math::Trig qw/ acos /;
 use Astro::SLA ();
