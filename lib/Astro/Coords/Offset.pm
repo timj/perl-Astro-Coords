@@ -12,6 +12,13 @@ Astro::Coords::Offset - Represent an offset from a base position
                                           system => 'J2000',
                                           projection => "TAN" );
 
+  my $offset = new Astro::Coords::Offset( $ang1, $ang2, 
+                                          system => 'J2000',
+                                          projection => "TAN" );
+
+  my ($a1, $a2) = $offset->offsets;
+  my $arcsec = $a1->arcsec;
+
 =head1 DESCRIPTION
 
 Sometimes, it is necessary for a position to be specified that is
@@ -25,6 +32,8 @@ use 5.006;
 use strict;
 use warnings;
 use Carp;
+
+use Astro::Coords::Angle;
 
 use vars qw/ @PROJ  @SYSTEMS /;
 
@@ -57,9 +66,10 @@ our $VERSION = '0.01';
 
 =item B<new>
 
-Create a new Offset object. The first two arguments must be the offsets
-in arcseconds. The projection and tracking system can be specified
-as optional hash arguments (defaulting to TAN and J2000 respectively).
+Create a new Offset object. The first two arguments must be the
+offsets in arcseconds or C<Astro::Coords::Angle> objects. The
+projection and tracking system can be specified as optional hash
+arguments (defaulting to TAN and J2000 respectively).
 
   my $off = new Astro::Coords::Offset( 10, -20 );
 
@@ -82,6 +92,13 @@ sub new {
 
   my $system = (exists $options{system} ? $options{system} : "J2000" );
   my $proj = (exists $options{projection} ? $options{projection} : "TAN" );
+
+  # Store the offsets as Angle objects if they are not already
+  $dc1 = new Astro::Coords::Angle( $dc1, units => 'arcsec' )
+    unless UNIVERSAL::isa( $dc1, 'Astro::Coords::Angle');
+  $dc2 = new Astro::Coords::Angle( $dc2, units => 'arcsec' )
+    unless UNIVERSAL::isa( $dc2, 'Astro::Coords::Angle');
+
 
   # Create the object
   my $off = bless {
@@ -111,6 +128,8 @@ sub new {
 Return the X and Y offsets.
 
   @offsets = $self->offsets;
+
+as C<Astro::Coords::Angle> objects.
 
 =cut
 
