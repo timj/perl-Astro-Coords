@@ -1,8 +1,8 @@
 Astro::Coords
 =============
 
-A wrapper class around Astro::SLA that simplifies the handling of
-astronomical coordinate systems. It can be used to convert between
+This module provides an object oriented approach to astronomical
+coordinate transformations. It can be used to convert between
 J2000, B1950, Galactic and super Galactic coordinates.  It can
 calculate the azimuth and elevation of a source specified in
 equatorial coordinates, orbital elements or by name (if a planet).
@@ -12,6 +12,9 @@ corrections can also be calculated.
 
 This software is still a beta release but is in use in a production
 environment. The interfaces may still change slightly.
+
+It is a wrapper class around Astro::SLA that simplifies the handling of
+astronomical coordinate systems. 
 
 Requirements
 ------------
@@ -38,7 +41,7 @@ Author
 This module was written by Tim Jenness <tjenness@cpan.org>
 of the Joint Astronomy Centre.
 
-Copyright (C) 2001-2004 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2005 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 
@@ -86,3 +89,4 @@ Changes
          + planet diameter is now available
          + Galactic and ecliptic conversions now in base class (moved from Equatorial)
          + radec1950 method available
+         + Switch to GPL license

@@ -264,7 +264,9 @@ on this.
 
 Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
-Copyright 2002-2004 Particle Physics and Astronomy Research Council.
+=head1 COPYRIGHT
+
+Copyright 2002-2005 Particle Physics and Astronomy Research Council.
 All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under

@@ -205,9 +205,11 @@ sub _r2f {
 
 =head1 AUTHOR
 
-Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt>
+Tim Jenness E<lt>t.jenness@cpan.orgE<gt>
 
-Copyright (C) 2004 Tim Jenness. All Rights Reserved.
+=head1 COPYRIGHT
+
+Copyright (C) 2004-2005 Tim Jenness. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
