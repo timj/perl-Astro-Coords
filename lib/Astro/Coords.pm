@@ -1132,7 +1132,7 @@ sub _cvt_tohrs {
   my $self = shift;
   my ($fmt, $rad) = @_;
   # Convert to hours if we are using a string or hour format
-  $rad /= 15.0 if $$fmt =~ /^[ash]/;
+  $rad /= 15.0 if defined $rad && $$fmt =~ /^[ash]/;
   # and reset format to use degrees
   $$fmt = "degrees" if $$fmt =~ /^h/;
   return $rad;
@@ -1154,6 +1154,8 @@ prior to calling this routine.
 
   $out = $c->_cvt_fromrad( $rad, $format );
 
+If the input value is undefined the return value will be undefined.
+
 =cut
 
 sub _cvt_fromrad {
@@ -1161,6 +1163,7 @@ sub _cvt_fromrad {
   my $in = shift;
   my $format = shift;
   $format = '' unless defined $format;
+  return $in unless defined $in;
 
   if ($format =~ /^d/) {
     $in *= Astro::SLA::DR2D;
