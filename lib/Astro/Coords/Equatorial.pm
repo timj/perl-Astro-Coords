@@ -579,8 +579,10 @@ sub apparent {
   my $rv = 0;
   if ($par != 0 || $pm[0] != 0 || $pm[1] != 0 ) {
     # Radial velocity in HEL frame
-    $rv = $self->rv;
-    $rv += $self->vdiff( 'HEL', '' );
+    # Note that we need to calculate the apparent RA/Dec to get the HEL frame
+    # if the radial velocity is not already in HEL
+    # We have to ignore it for now and only use rv if it is heliocentric
+    $rv = $self->rv if $self->vdefn eq 'HEL';
   }
 
   Astro::SLA::slaMap( $ra, $dec,
