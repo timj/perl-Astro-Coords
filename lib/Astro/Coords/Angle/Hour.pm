@@ -148,7 +148,7 @@ sub _cvt_torad {
   if (defined $units && $units =~ /^h/) {
     $unt = 'deg';
   } elsif (!defined $units) {
-    $unt = $self->_guess_uniuts( $input );
+    $unt = $self->_guess_units( $input );
   }
 
   # Do the conversion
