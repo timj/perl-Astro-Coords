@@ -35,7 +35,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Astro::SLA ();
 use base qw/ Astro::Coords /;
@@ -65,6 +65,8 @@ Azimuth and Elevation is the internal format. Currently there is no
 caching (so there is always overhead converting to apparent 
 RA and Dec) since there is no cache flushing when the telescope
 is changed.
+
+In principal a name can be associated with this position.
 
 =cut
 
@@ -105,6 +107,9 @@ sub new {
   } else {
     return undef;
   }
+
+  # Store the name
+  $c->name( $args{name} ) if exists $args{name};
 
   # Store it in the object
   $c->_azel( $az, $el );

@@ -20,7 +20,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Astro::SLA ();
 use base qw/ Astro::Coords /;
@@ -83,6 +83,17 @@ Returns the name of the planet.
 sub planet {
   my $self = shift;
   return $self->{planet};
+}
+
+=item B<name>
+
+For planets, the name is always just the planet name.
+
+=cut
+
+sub name {
+  my $self = shift;
+  return $self->planet;
 }
 
 =back

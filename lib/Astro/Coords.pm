@@ -229,9 +229,9 @@ Name of the target associated with the coordinates.
 sub name {
   my $self = shift;
   if (@_) {
-    $self->{Name} = shift;
+    $self->{name} = shift;
   }
-  return $self->{Name};
+  return $self->{name};
 }
 
 =item B<telescope>

@@ -20,7 +20,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 # Need working slaPlante
 use Astro::SLA 0.95 ();
@@ -132,7 +132,7 @@ sub new {
   # Copy the elements
   my %el = %{ $opts{elements}};
 
-  bless { elements => \%el }, $class;
+  bless { elements => \%el, name => $opts{name} }, $class;
 
 }
 

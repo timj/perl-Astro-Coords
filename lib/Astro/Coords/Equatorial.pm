@@ -6,7 +6,8 @@ Astro::Coords::Equatorial - Manipulate equatorial coordinates
 
 =head1 SYNOPSIS
 
-  $c = new Astro::Coords::Equatorial( ra   => '05:22:56',
+  $c = new Astro::Coords::Equatorial( name => 'blah',
+				      ra   => '05:22:56',
 				      dec  => '-26:20:40.4',
 				      type => 'B1950'
 				      units=> 'sexagesimal');
@@ -23,7 +24,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Astro::SLA ();
 use base qw/ Astro::Coords /;
@@ -41,6 +42,7 @@ use overload '""' => "stringify";
 Instantiate a new object using the supplied options.
 
   $c = new Astro::Coords::Equatorial(
+			  name =>
                           ra =>
                           dec =>
 			  long =>
@@ -54,7 +56,8 @@ Lat are used for degdeg systems (eg where type=galactic). C<type> can
 be "galactic", "j2000", "b1950", and "supergalactic".  The C<units>
 can be specified as "sexagesimal" (when using colon or space-separated
 strings), "degrees" or "radians". The default is determined from
-context.
+context. The name is just a string you can associate with the sky
+position.
 
 All coordinates are converted to FK5 J2000.
 
@@ -116,7 +119,7 @@ sub new {
   }
 
   # Now the actual object
-  bless { ra2000 => $ra, dec2000 => $dec }, $class;
+  bless { ra2000 => $ra, dec2000 => $dec, name => $args{name} }, $class;
 
 
 }

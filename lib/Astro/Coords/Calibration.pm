@@ -23,7 +23,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use base qw/ Astro::Coords::Fixed /;
 
@@ -41,13 +41,21 @@ This class inherits from C<Astro::Coords::Fixed>.
 Simply instantiates an object with an Azimuth of 0.0 degrees and an
 elevation of 90 degrees. The exact values do not matter.
 
+A label can be associated with the calibration (for example, to
+include the type).
+
+  $c = new Astro::Coords::Calibration( name => 'DARK' );
+
 =cut
 
 sub new {
   my $proto = shift;
   my $class = ref($proto) || $proto;
+  my %args = @_;
 
   my $self = $class->SUPER::new( az => 0.0, el => 90.0 );
+  $self->name( $args{name} ) if exists $args{name};
+
   return $self;
 }
 
