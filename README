@@ -7,7 +7,8 @@ J2000, B1950, Galactic and super Galactic coordinates.  It can
 calculate the azimuth and elevation of a source specified in
 equatorial coordinates, orbital elements or by name (if a planet).
 It can also determine whether the specified coordinates are observable
-for the given telescope.
+for the given telescope and determine rise and set times. Doppler
+corrections can also be calculated.
 
 This software is still a beta release but is in use in a production
 environment. The interfaces may still change slightly.
@@ -15,7 +16,7 @@ environment. The interfaces may still change slightly.
 Requirements
 ------------
 
-This class uses Astro::SLA, Astro::Telescope and Time::Piece.
+This class uses Astro::SLA, Astro::Telescope and DateTime
 
 
 Building
@@ -26,9 +27,6 @@ Building
   make test
   make install
 
-The test calculates the azimuth and elevation of a 3 sources
-including a planet and a comet (Hale Bopp).
-
 
 Author
 ------
@@ -36,14 +34,13 @@ Author
 This module was written by Tim Jenness  <tjenness@cpan.org>
 of the Joint Astronomy Centre.
 
-Copyright (C) 2001-2003 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2004 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 
 TODO
 ----
 
-  + Include parallax and proper motions
   + Add support for JPL ephemeris when calculating planet positions
   + Add support for Horizons web service when generating positions
     of planetary moons
@@ -67,3 +64,21 @@ Changes
          - Fix orbital elements [requires recent slalib]
          + Can now ask for J2000 for all coordinate types
          + Add name and comment method for tagging a coordinate object
+
+ v0.07 - Add support for parallax and proper motion, epoch and equinox
+         + ra2000 and dec2000 methods always return RA/Dec J2000 for epoch 2000.0
+          (equatorial only)
+
+ v0.10 - + Major reorganization internally to use (the new) Astro::Coords::Angle
+           objects for all angles. Should simplify formatting of return values.
+         + datetime() method now supports DateTime objects for time
+           specification. Time::Piece is now deprecated.
+         + Add radial velocity support
+         + Add doppler correction (experimental)
+         + New method to obtain the native Equatorial encoding that was used
+         + set_time and rise_time now works properly for the Moon (and Sun)
+         + rise_time can now be configured to return the nearest rise time
+           not just the next rise_time.
+         + planet diameter is now available
+         + Galactic and ecliptic conversions now in base class (moved from Equatorial)
+         + radec1950 method available
