@@ -112,6 +112,16 @@ sub new {
   for my $key (qw/ EPOCH EPOCHPERIH / ) {
     next unless exists $opts{elements}->{$key};
     my $epoch = $opts{elements}->{$key};
+
+    # if we are missing one of the EPOCHs that is okay
+    # so just skip
+    if (!$epoch) {
+      # and delete it from the hash as if it was never supplied
+      # this avoids complications later
+      delete $opts{elements}->{$key};
+      next;
+    }
+
     if ($epoch =~ /^\d+\.\d+$/ || $epoch =~ /^\d+$/) {
       # an MJD so do not modify
     } elsif ($epoch =~ /\d\d\d\d \w\w\w \d+\.\d+/) {
@@ -127,7 +137,7 @@ sub new {
 
       # get the MJD and add on the fraction
       my $mjd = $obj->mjd() + $frac;
-      $opts{elements}->{EPOCH} = $mjd;
+      $opts{elements}->{$key} = $mjd;
       #print "MJD: $mjd\n";
 
     } else {
@@ -136,6 +146,11 @@ sub new {
       return undef;
     }
   }
+
+  # but complain if we do not have one of them
+  croak "Must supply one of EPOCH or EPOCHPERIH - both were undefined"
+    if (!exists $opts{elements}->{EPOCH} &&
+	!exists $opts{elements}->{EPOCHPERIH});
 
   # Copy the elements
   my %el = %{ $opts{elements}};
