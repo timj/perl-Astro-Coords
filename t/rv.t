@@ -74,26 +74,31 @@ is( $c->vdiff( 'LSRK', 'LSRD'), ($c->vlsrk - $c->vlsrd), "diff of two velocity f
 # Now compare this with some calculations found on a random web page
 # RA 3h27.6m, Dec=-63°18'47"
 # Verified with RV
-$c = new Astro::Coords( 
-		       ra => '3h27m36',
-		       dec => '-63 18 47',
-		       epoch => 1975.0,
-		       type => 'B1975',
-		       name => 'k Ret',
-		      );
+# Need to have a modern Astro::Telescope
+SKIP: {
+  skip "Need Astro::Telescope > v0.50", 2
+    unless $Astro::Telescope::VERSION > 0.5;
 
-$dt = new DateTime( year => 1975, month => 1, day => 3,
-		    hour => 19,	time_zone => 'UTC' );
-$c->datetime( $dt );
-$tel = new Astro::Telescope( 'Name' => 'test',
-			     'Long' => Astro::Coords::Angle->new( '20 48 42' )->radians,
-			     'Lat'  => Astro::Coords::Angle->new( '-32 22 42' )->radians,
-			     Alt => 0);
-isa_ok( $tel, 'Astro::Telescope' );
-$c->telescope( $tel );
+  $c = new Astro::Coords( 
+			 ra => '3h27m36',
+			 dec => '-63 18 47',
+			 epoch => 1975.0,
+			 type => 'B1975',
+			 name => 'k Ret',
+			);
 
-is( sprintf('%.2f', $c->vhelio), 7.97, 'Heliocentric velocity');
+  $dt = new DateTime( year => 1975, month => 1, day => 3,
+		      hour => 19,	time_zone => 'UTC' );
+  $c->datetime( $dt );
+  $tel = new Astro::Telescope( 'Name' => 'test',
+			       'Long' => Astro::Coords::Angle->new( '20 48 42' )->radians,
+			       'Lat'  => Astro::Coords::Angle->new( '-32 22 42' )->radians,
+			       Alt => 0);
+  isa_ok( $tel, 'Astro::Telescope' );
+  $c->telescope( $tel );
 
+  is( sprintf('%.2f', $c->vhelio), 7.97, 'Heliocentric velocity');
+}
 
 # Radial velocity and doppler correction
 $c = new Astro::Coords( ra => '16 43 52',
