@@ -1,7 +1,7 @@
 use strict;
 use Test;
 
-BEGIN { plan tests => 33 }
+BEGIN { plan tests => 51 }
 
 use Astro::Coords;
 use Astro::Telescope;
@@ -65,6 +65,37 @@ test_array_elem(\@summary,\@result);
 
 
 # No tests for elements yet
+
+# Test Fixed on Earth coordinate frames
+# and compare with the previous values for Mars
+
+my $fc = new Astro::Coords( az => $c->az, el => $c->el );
+$fc->telescope( $tel );
+$fc->datetime( $date);
+
+print "# FIXED: $fc\n";
+
+ok($fc->type, "FIXED");
+
+# Test Az/El
+ok( int($fc->el(format=>"d")),  34 );
+ok( int($fc->az(format=>"d")), 145 );
+
+# And apparent ra/dec
+ok( int($fc->ra_app(format=>"h")), 18);
+ok( int($fc->dec_app(format=>"d")), -26);
+
+# Get the summary
+@result = ("FIXED",$fc->az,$fc->el,undef,undef,undef,undef,undef,undef,
+	      undef,undef);
+@summary = $fc->array;
+test_array_elem(\@summary,\@result);
+
+# Calibration
+print "# CAL\n";
+my $cal = new Astro::Coords();
+
+ok( $cal->type, "CAL");
 
 
 exit;
