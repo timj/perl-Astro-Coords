@@ -108,7 +108,7 @@ epoch for FK4 coordinates and Julian epoch for all others.
 Radial velocities can be specified using hash arguments:
 
   rv  =>  radial velocity (km/s)
-  vdefn => velocity definition (RADIO, OPTICAL) [default: OPTICAL]
+  vdefn => velocity definition (RADIO, OPTICAL, RELATIVSTIC) [default: OPTICAL]
   vframe => velocity reference frame (HEL,GEO,TOP,LSRK,LSRD) [default: HEL]
 
 Note that the radial velocity is only used to calculate position if
@@ -582,7 +582,7 @@ sub apparent {
     # Note that we need to calculate the apparent RA/Dec to get the HEL frame
     # if the radial velocity is not already in HEL
     # We have to ignore it for now and only use rv if it is heliocentric
-    $rv = $self->rv if $self->vdefn eq 'HEL';
+    $rv = $self->rv if $self->vframe eq 'HEL';
   }
 
   Astro::SLA::slaMap( $ra, $dec,

@@ -1675,9 +1675,10 @@ Redshift is defined as the optical velocity as a fraction of the speed of light:
 
   v(opt) = c z
 
-Returns the reshift if the velocity definition is optical. If the velocity definition
-is radio, redshift can only be calculated for small radio velocities.
-An attempt is made to calculate redshift from radio velocity using
+Returns the reshift if the velocity definition is optical. If the
+velocity definition is radio, redshift can only be calculated for
+small radio velocities.  An attempt is made to calculate redshift from
+radio velocity using
 
   v(opt) = v(radio) / ( 1 - v(radio) / c )
 
@@ -1690,10 +1691,13 @@ sub redshift {
   my $vd = $self->vdefn;
   if ($vd eq 'REDSHIFT' || $vd eq 'OPTICAL') {
     return ( $self->rv / CLIGHT );
+  } elsif ($vd eq 'RELATIVISTIC') {
+    # need to add
+    return undef;
   } else {
     my $rv = $self->rv;
-    # 10% of light speed
-    if ( ($rv / CLIGHT) < 0.01 ) {
+    # 1% of light speed
+    if ( $rv > ( 0.01 * CLIGHT) ) {
       my $vopt = $rv / ( 1 - ( $rv / CLIGHT ) );
       return ( $vopt / CLIGHT );
     } else {
@@ -1715,9 +1719,9 @@ sub _set_redshift {
 =item B<vdefn>
 
 The velocity definition used to specify the target radial velocity.
-This is a readonly parameter set at object creation (depending on subclass)
-and can be one of RADIO, OPTICAL or REDSHIFT (which is really optical but specified
-in a different way).
+This is a readonly parameter set at object creation (depending on
+subclass) and can be one of RADIO, OPTICAL, RELATIVISTIC or REDSHIFT
+(which is really optical but specified in a different way).
 
   $vdefn = $c->vdefn();
 
@@ -1734,11 +1738,9 @@ sub vdefn {
 sub _set_vdefn {
   my $self = shift;
   my $defn = shift;
+  # undef resets to default
   if (defined $defn) {
-    # undef resets to default
-    $defn = uc( $defn );
-    croak "Unrecognized velocity definition: $defn. Must be RADIO, OPTICAL or REDSHIFT"
-      unless ($defn eq 'RADIO' or $defn eq 'OPTICAL' or $defn eq 'REDSHIFT');
+    $defn = $self->_normalise_vdefn( $defn );
   }
   $self->{VelocityDefinition} = $defn;
 }
@@ -1870,6 +1872,10 @@ sub doppler {
       # small radial velocity, use standard doppler formula
       $doppler = 1 - ( $obsvel / ( CLIGHT + $obsvel ) );
     }
+  } elsif ( $vdefn eq 'RELATIVISTIC' ) {
+    # do we need to use the same correction as for OPTICAL and REDSHIFT?
+    # presumably
+    $doppler = sqrt( ( CLIGHT - $obsvel ) / ( CLIGHT + $obsvel ) );
   } else {
     croak "Can not calculate doppler correction for unsupported definition $vdefn\n";
   }
@@ -2344,6 +2350,45 @@ sub _normalise_vframe {
 
   # okay
   return $trunc;
+}
+
+=item B<_normalise_vdefn>
+
+Convert an input string representing a velocity definition, to
+a standardised form recognized by the software. In all cases the
+string is truncated to 3 characters and upper-cased before validating
+against known types.
+
+ $defn = $c->_normalise_vdefn( $in );
+
+Unrecognized or undefined frames trigger an exception.
+
+=cut
+
+sub _normalise_vdefn {
+  my $self = shift;
+  my $in = shift;
+
+  croak "Velocity definition not defined. Can not normalise" unless defined $in;
+
+  # upper case
+  $in = uc( $in );
+
+  # Truncate
+  my $trunc = substr( $in, 0, 3 );
+
+  # Verify
+  if ($trunc eq 'RAD') {
+    return 'RADIO';
+  } elsif ($trunc eq 'OPT') {
+    return 'OPTICAL';
+  } elsif ($trunc eq 'RED') {
+    return 'REDSHIFT';
+  } elsif ($trunc eq 'REL') {
+    return 'RELATIVISTIC';
+  } else {
+    croak "Unrecognized velocity definition '$trunc'";
+  }
 }
 
 =back
