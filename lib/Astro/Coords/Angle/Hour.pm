@@ -115,14 +115,13 @@ This method has no effect on the base class.
 
 =item B<DELIM>
 
-As for the base class, except that the default is "hms".
-The global value in this class does not have any effect on the base
-class.
+As for the base class. The global value in this class does not have
+any effect on the base class.
 
 =cut
 
 {
-  my $DEFAULT_DELIM = "hms";
+  my $DEFAULT_DELIM = " ";
   my $DELIM = $DEFAULT_DELIM;
   sub DELIM {
     my $class = shift;

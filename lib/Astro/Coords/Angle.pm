@@ -539,13 +539,13 @@ whereas 'dm' would result in '12d52m45.4'
 
   Astro::Coords::Angle->DELIM( ':' );
 
-Default is "dms". An undefined argument will result in the class reverting
+Default is " ". An undefined argument will result in the class reverting
 to the default state.
 
 =cut
 
 {
-  my $DEFAULT_DELIM = "dms";
+  my $DEFAULT_DELIM = " ";
   my $DELIM = $DEFAULT_DELIM;
   sub DELIM {
     my $class = shift;
