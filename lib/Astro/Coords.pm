@@ -324,6 +324,8 @@ Defaults to the empty string.
   $comment = $c->comment;
   $c->comment("An inaccurate coordinate");
 
+Always returns an empty string if undefined.
+
 =cut
 
 sub comment {
@@ -331,7 +333,9 @@ sub comment {
   if (@_) {
     $self->{Comment} = shift;
   }
-  return $self->{Comment};
+  my $com = $self->{Comment};
+  $com = '' unless defined $com;
+  return $com;
 }
 
 =back
