@@ -322,7 +322,7 @@ sub usenow {
 =item B<ra_app>
 
 Apparent RA for the current time. Arguments are similar to those
-specified for "dec".
+specified for "dec_app".
 
   $ra_app = $c->ra_app( format => "s" );
 
@@ -438,7 +438,45 @@ sub airmass {
   return Astro::SLA::slaAirmas( $zd );
 }
 
+=item B<ra>
 
+Return the J2000 Right ascension for the target. Unless overridden
+by a subclass this converts the apparrent RA/Dec to J2000.
+
+  $ra2000 = $c->ra( format => "s" );
+
+=cut
+
+sub ra {
+  my $self = shift;
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  my ($ra_app, $dec_app) = $self->_apparent;
+  my $mjd = $self->_mjd_tt;
+  Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, 2000.0, my $rm, my $dm);
+  # Convert to hours if we are using a string or hour format
+  $rm = $self->_cvt_tohrs( \$opt{format}, $rm);
+  return $self->_cvt_fromrad( $rm, $opt{format});
+}
+
+=item B<dec>
+
+Return the J2000 declination for the target. Unless overridden
+by a subclass this converts the apparrent RA/Dec to J2000.
+
+  $dec2000 = $c->dec( format => "s" );
+
+=cut
+
+sub dec {
+  my $self = shift;
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  my ($ra_app, $dec_app) = $self->_apparent;
+  my $mjd = $self->_mjd_tt;
+  Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, 2000.0, my $rm, my $dm);
+  return $self->_cvt_fromrad( $dm, $opt{format});
+}
 
 =item B<pa>
 
@@ -601,20 +639,27 @@ sub status {
 
   $string .= "Coordinate type:" . $self->type ."\n";
 
-  $string .= "Elevation:      " . $self->el(format=>'d')." deg\n";
-  $string .= "Azimuth  :      " . $self->az(format=>'d')." deg\n";
-  my $ha = Astro::SLA::slaDrange( $self->ha ) * Astro::SLA::DR2H;
-  $string .= "Hour angle:     " . $ha ." hrs\n";
-  $string .= "Apparent RA :   " . $self->ra_app(format=>'s')."\n";
-  $string .= "Apparent dec:   " . $self->dec_app(format=>'s')."\n";
+  if ($self->type ne 'CAL') {
 
-  if ($self->can('ra')) {
-    $string .= "RA (J2000):   " . $self->ra(format=>'s')."\n";
-    $string .= "Dec(J2000):   " . $self->dec(format=>'s')."\n";
+    $string .= "Elevation:      " . $self->el(format=>'d')." deg\n";
+    $string .= "Azimuth  :      " . $self->az(format=>'d')." deg\n";
+    my $ha = Astro::SLA::slaDrange( $self->ha ) * Astro::SLA::DR2H;
+    $string .= "Hour angle:     " . $ha ." hrs\n";
+    $string .= "Apparent RA :   " . $self->ra_app(format=>'s')."\n";
+    $string .= "Apparent dec:   " . $self->dec_app(format=>'s')."\n";
+
+    # This check was here before we added a RA/Dec to the
+    # base class.
+    if ($self->can('ra')) {
+      $string .= "RA (J2000):     " . $self->ra(format=>'s')."\n";
+      $string .= "Dec(J2000):     " . $self->dec(format=>'s')."\n";
+    }
   }
 
   if (defined $self->telescope) {
-    $string .= "Telescope:      " . $self->telescope->fullname . "\n";
+    my $name = (defined $self->telescope->fullname ?
+		$self->telescope->fullname : $self->telescope->name );
+    $string .= "Telescope:      $name\n";
     if ($self->isObservable) {
       $string .= "The target is currently observable\n";
     } else {
@@ -736,7 +781,8 @@ sub _cvt_fromrad {
     $in *= Astro::SLA::DR2D;
   } elsif ($format =~ /^[as]/) {
     my @dmsf;
-    Astro::SLA::slaDr2af(2, $in, my $sign, @dmsf);
+    my $res = 2;
+    Astro::SLA::slaDr2af($res, $in, my $sign, @dmsf);
     if ($format =~ /^a/) {
       # Store the sign
       unshift(@dmsf, $sign);
@@ -746,8 +792,8 @@ sub _cvt_fromrad {
       # Store the reference
       $in = \@dmsf;
     } else {
-      $sign = '' if $sign eq "+";
-      $in = $sign . join(":",@dmsf[0..2]) . ".$dmsf[3]";
+      $sign = ' ' if $sign eq "+";
+      $in = $sign . sprintf("%02d:%02d:%02d.%$res.$res"."d",@dmsf);
     }
   }
 
@@ -848,7 +894,7 @@ sub _mjd_tt {
   my $self = shift;
   my $mjd = $self->datetime->mjd;
   my $offset = Astro::SLA::slaDtt( $mjd );
-  $mjd += ($offset / (60*60*24));
+  $mjd += ($offset / (86_400));
   return $mjd;
 }
 
