@@ -112,7 +112,7 @@ sub new {
     my ($date, $frac) = split(/\./,$epoch,2);
     $frac = "0.". $frac; # preserve as decimal fraction
     my $format = '%Y %B %d';
-    print "EPOCH : $epoch and $date and $frac\n";
+    #print "EPOCH : $epoch and $date and $frac\n";
     my $obj = Time::Piece->strptime($date, $format);
     my $tzoffset = $obj->tzoffset;
     $obj = gmtime($obj->epoch() + $tzoffset);
@@ -120,7 +120,7 @@ sub new {
     # get the MJD and add on the fraction
     my $mjd = $obj->mjd() + $frac;
     $opts{elements}->{EPOCH} = $mjd;
-    print "MJD: $mjd\n";
+    #print "MJD: $mjd\n";
 
   } else {
     # do not understand the format so return undef

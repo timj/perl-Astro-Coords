@@ -208,20 +208,20 @@ $c = new Astro::Coords( elements => {
 				     E => 0.995068,
 
 				     # from JPL horizons
-				     EPOCH => 50538.179590069,
-				     ORBINC => 89.4475147* Astro::SLA::DD2R,
-				     ANODE =>  282.218428* Astro::SLA::DD2R,
-				     PERIH =>  130.7184477* Astro::SLA::DD2R,
-				     AORQ => 0.9226383480674554,
-				     E => 0.9949722217794675,
+#				     EPOCH => 50538.179590069,
+#				     ORBINC => 89.4475147* Astro::SLA::DD2R,
+#				     ANODE =>  282.218428* Astro::SLA::DD2R,
+#				     PERIH =>  130.7184477* Astro::SLA::DD2R,
+#				     AORQ => 0.9226383480674554,
+#				     E => 0.9949722217794675,
 				    });
 ok($c);
 $c->telescope( $tel );
 
 # Time is in UT not localtime
 $time = _gmstrptime("1997-10-24T16:58:32");
-$time = _gmstrptime("1997-10-24T16:57:12");
-$time = _gmstrptime("1997-10-24T18:00:00");
+#$time = _gmstrptime("1997-10-24T16:57:12");
+#$time = _gmstrptime("1997-10-24T18:00:00");
 
 $c->datetime( $time );
 print "# MJD: " . $c->datetime->mjd ."\n";
