@@ -1,3 +1,8 @@
+2005-03-16  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords/Elements.pm (apparent): Include the target name
+	in the error message when failing to perturb the elements.
+
 2005-02-21  Tim Jenness  <tjenness@cpan.org>
 
 	---- RELEASE V0.10 to CPAN ----

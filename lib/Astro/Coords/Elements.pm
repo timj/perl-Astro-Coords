@@ -318,7 +318,10 @@ sub apparent {
 			  $el{PERIH},$el{AORQ},$el{E},$el{AORL},
 			  my $jstat);
     #print "After perturbing: " .Dumper(\%el);
-    croak "Error perturbing elements [status=$jstat]" if $jstat != 0;
+    croak "Error perturbing elements for target ".
+            (defined $self->name ? $self->name : '' )
+             ." [status=$jstat]" 
+       if $jstat != 0;
   }
 
 
