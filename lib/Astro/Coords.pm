@@ -183,7 +183,7 @@ sub new {
        and exists $args{elements}{EPOCH}
        and defined $args{elements}{EPOCH}) {
 
-      $obj = new Astro::Coords::Elements( $args{planet} );
+      $obj = new Astro::Coords::Elements( elements => $args{elements} );
 
     } elsif (exists $args{type} and defined $args{type}) {
 
