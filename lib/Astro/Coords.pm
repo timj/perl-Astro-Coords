@@ -258,7 +258,8 @@ sub datetime {
   my $self = shift;
   if (@_) {
     my $time = shift;
-    croak "Argument does not have an mjd() method"
+    croak "datetime: Argument does not have an mjd() method [class="
+      . ( ref($time) ? ref($time) : $time) ."]"
       unless (UNIVERSAL::can($time, "mjd"));
     $self->{DateTime} = $time;
   }
