@@ -86,6 +86,8 @@ use strict;
 use warnings;
 use warnings::register;
 use Carp;
+use vars qw/ $DEBUG /;
+$DEBUG = 0;
 
 our $VERSION = '0.07';
 
@@ -302,8 +304,11 @@ time to be used on subsequent calls.
 If no argument is specified, or C<usenow> is set to true, an object
 referring to the current time (GMT/UT) is returned. This object may be
 either a C<Time::Piece> object or a C<DateTime> object depending on
-current implementation. If a new argument is supplied C<usenow> is
-always set to false.
+current implementation (but in modern versions it will be a
+C<DateTime> object). If a new argument is supplied C<usenow> is always
+set to false.
+
+A copy of the input argument is created, guaranteeing a UTC representation.
 
 =cut
 
@@ -316,13 +321,13 @@ sub datetime {
     croak "datetime: Argument does not have an mjd() method [class="
       . ( ref($time) ? ref($time) : $time) ."]"
       if (defined $time && !UNIVERSAL::can($time, "mjd"));
-    $self->{DateTime} = $time;
+    $self->{DateTime} = _clone_time( $time );
     $self->usenow(0);
   }
   if (defined $self->{DateTime} && ! $self->usenow) {
     return $self->{DateTime};
   } else {
-    return DateTime->now;
+    return DateTime->now( time_zone => 'UTC' );
   }
 }
 
@@ -722,15 +727,15 @@ sub status {
     $string .= "Apparent dec:   " . $self->dec_app(format=>'s')."\n";
 
     # Transit time
-    $string .= "Time of transit:" . $self->meridian_time ."\n";
+    $string .= "Time of next transit:" . $self->meridian_time ."\n";
     $string .= "Transit El:     " . $self->transit_el(format=>'d')." deg\n";
     my $ha_set = $self->ha_set( format => 'hour');
     $string .= "Hour Ang. (set):" . (defined $ha_set ? $ha_set : '??')." hrs\n";
 
     my $t = $self->rise_time;
-    $string .= "Rise time:      " . $t . "\n" if defined $t;
+    $string .= "Next Rise time:      " . $t . "\n" if defined $t;
     $t = $self->set_time;
-    $string .= "Set time:       " . $t . "\n" if defined $t;
+    $string .= "Next Set time:       " . $t . "\n" if defined $t;
 
     # This check was here before we added a RA/Dec to the
     # base class.
@@ -820,12 +825,7 @@ sub calculate {
 
   # Get a private copy of the date object for calculations
   # (copy constructor)
-  my $current;
-  if ($dateclass eq 'DateTime') {
-    $current = DateTime->from_epoch( epoch => $opts{start}->epoch );
-  } else {
-    $current = Time::Piece::gmtime( $opts{start}->epoch );
-  }
+  my $current = _clone_time( $opts{start} );
 
   while ( $current->epoch <= $opts{end}->epoch ) {
 
@@ -833,12 +833,7 @@ sub calculate {
     my %timestep;
 
     # store a copy of the time
-    if ($dateclass eq 'DateTime') {
-      $timestep{time} = DateTime->from_epoch( epoch => $current->epoch );
-    } else {
-      $timestep{time} = Time::Piece::gmtime( $current->epoch );
-    }
-
+    $timestep{time} = _clone_time( $current );
 
     # Set the time in the object
     # [standard problem with knowing whether we are overriding
@@ -866,12 +861,17 @@ sub calculate {
 =item B<rise_time>
 
 Next time the target will appear above the horizon (starting from the
-time stored in C<datetime>). Returns undef if the target is already
-up. An optional argument can be given (as a hash with key "horizon")
-specifying a different elevation to the horizon (in radians).
+time stored in C<datetime>). By default returns undef if the target is
+already up (as determined by looking at the current date value),
+specifying the "nearest" option to the hash will allow rise times that
+have already occurred. An optional argument can be given (as a hash
+with key "horizon") specifying a different elevation to the horizon
+(in radians).
 
   $t = $c->rise_time();
   $t = $c->rise_time( horizon => $el );
+
+  $t = $c->rise_time( nearest => 1 );
 
 Returns a C<Time::Piece> object.
 
@@ -882,16 +882,17 @@ that never sets.
 
 sub rise_time {
   my $self = shift;
+  my %opts = @_;
 
   # Calculate the HA required for setting
-  my $ha_set = $self->ha_set( @_, format => 'radians' );
+  my $ha_set = $self->ha_set( %opts, format => 'radians' );
   return if ! defined $ha_set;
 
   # and convert to seconds
   $ha_set *= Astro::SLA::DR2S;
 
   # Calculate the transit time
-  my $mt = $self->meridian_time;
+  my $mt = $self->meridian_time( nearest => $opts{nearest} );
 
   if (blessed($mt) eq 'DateTime') {
     $ha_set = new DateTime::Duration( seconds => $ha_set );
@@ -900,19 +901,13 @@ sub rise_time {
   # Calculate rise time by subtracting the hour angle
   my $rise = $mt - $ha_set;
 
-  # DateTime refuses to overload compare 
-  if (blessed($rise) eq 'DateTime') {
-    my $duration = $rise - $self->datetime;
-    if ($duration->is_positive) {
-      return $rise;
-    }
+  # If the rise time has already happened return undef
+  # unless we are allowing earlier times
+  if (!$opts{nearest}) {
+    # return the time only if we are in the future
+    return $rise if (_cmp_time($rise, $self->datetime) >= 0);
   } else {
-
-    # If the rise time has already happened return undef
-    if ($rise - $self->datetime > 0) {
-      return $rise;
-    }
-
+    return $rise;
   }
   return;
 }
@@ -921,8 +916,10 @@ sub rise_time {
 
 Time at which the target will set below the horizon.  (starting from
 the time stored in C<datetime>). Returns C<undef> if the target is
-already down. An optional argument can be given specifying a different
-elevation to the horizon (in radians).
+never visible. An optional argument can be given specifying a
+different elevation to the horizon (in radians). Since
+C<meridian_time> is guaranteed to be in the future, this method should
+always return the next set time since that always follows a transit.
 
   $t = $c->set_time();
   $t = $c->set_time( horizon => $el );
@@ -931,6 +928,10 @@ Returns a C<Time::Piece> object.
 
 BUG: Does not distinguish a source that never rises from a source
 that never sets.
+
+BUG: Since C<meridian_time> returns the next transit, and this method
+uses that meridian time, it is possible that you will be returned the
+set time after next.
 
 =cut
 
@@ -944,32 +945,34 @@ sub set_time {
   # and convert to seconds
   $ha_set *= Astro::SLA::DR2S;
 
-  # Calculate the transit time
-  my $mt = $self->meridian_time;
-
-  if (blessed($mt) eq 'DateTime') {
+  # and thence to a duration if required
+  if ($self->datetime->isa('DateTime')) {
     $ha_set = new DateTime::Duration( seconds => $ha_set );
   }
 
-  my $set = $mt + $ha_set;
 
-#  print "MT: $mt  HA Set: $ha_set and Set time $set\n";
+  my $set;
+  # Calculate first for nearest meridian and then for
+  # next meridian. We want the set time to be in our future.
+  for my $n (1, 0) {
+    # Calculate the transit time
+    my $mt = $self->meridian_time( nearest => $n );
 
-  # If the rise time has already happened return undef
+    $set = $mt + $ha_set;
 
-  # DateTime refuses to overload compare 
-  if (blessed($set) eq 'DateTime') {
-    my $duration = $set - $self->datetime;
-    if ($duration->is_positive) {
-      return $set;
-    }
-  } else {
-    if ($set - $self->datetime > 0) {
-      return $set;
-    }
+    # If the set time is in the future we jump out of the loop
+    # since everything is okay
+    last if (_cmp_time( $set, $self->datetime ) >= 0 );
+
   }
-  return;
+
+  # Should not happen, but check that we if have something set
+  # it is in the future
+  $set = undef if (_cmp_time( $set, $self->datetime) < 0);
+
+  return $set;
 }
+
 
 =item B<ha_set>
 
@@ -1043,81 +1046,169 @@ sub ha_set {
 Calculate the meridian time for this target (the time at which
 the source transits).
 
-  MT(UT) = RA - LST(UT=0)
+  MT(UT) = apparent RA - LST(UT=0)
 
-The next transit following the current time is calculated and
-returned as a C<Time::Piece> object.
+By default the next transit following the current time is calculated and
+returned as a C<Time::Piece> or C<DateTime> object (depending on what
+is stored in C<datetime>).
+
+If you are happy to have a transit that has just occured (especially
+useful if you are simply trying to calculate values for a particularly
+day or have just passed transit and need to calculate a set time), use
+the "nearest" option set to true
+
+  $mt = $c->meridian_time( nearest => 1 );
 
 =cut
 
 sub meridian_time {
   my $self = shift;
+  my %opts = @_;
 
   # Get the current time (do not modify it since we need to put it back)
-  my $time = $self->datetime;
+  my $reftime = $self->datetime;
 
   # Determine whether we have to remember the cache
   my $havetime = $self->has_datetime;
 
-  # Add on 24 hours to go to the next day (so we can drop
-  # H:M:S)
-  my $next;
-  if (blessed($time) eq 'DateTime') {
-    # Copy the date and increment to next day
-    $next = $time + new DateTime::Duration( days => 1 );
+  my $dtime; # do we have DateTime objects
 
-    # create new object for that day so we go to next midnight
-    $next = new DateTime( year => $next->year,
-			  month => $next->month,
-			  day => $next->day,
-			);
+  # Check Time::Piece first since there is a possibility that 
+  # this is really a subclass of DateTime
+  if ($reftime->isa( "Time::Piece")) {
+    $dtime = 0;
+  } elsif ($reftime->isa("DateTime")) {
+    $dtime = 1;
   } else {
-    # increment by one day
-    $next = $time + Time::Seconds::ONE_DAY;
-
-    # Need to clear the HMS part so we have midnight
-    $next = $next - ( $next->hour * Time::Seconds::ONE_HOUR +
-		      $next->min * Time::Seconds::ONE_MINUTE +
-		      $next->sec );
+    croak "Unknown DateTime object class";
   }
 
-  # Store the new time
-  $self->datetime( $next );
+  # For fast moving objects such as planets, we need to calculate
+  # the transit time iteratively since the apparent RA/Dec will change
+  # slightly during the night so we need to adjust the internal clock
+  # to get it close to the actual transit time. We also need to make sure
+  # that we are starting at the correct reference time so start at the
+  # current time and look forward until we get a transit time > than
+  # our start time
 
-#  print "# Next is $next\n";
+  # Somewhere to store the previous time so we can make sure things
+  # are iterating nicely
+  my $prevtime;
 
-  # Now calculate the offset from the RA of the source.
-  # Note that RA should be apparent RA and so the time should
-  # match the actual time stored in the object.
-  my $offset = $self->ra_app - $self->_lst;
-
-  # This is in radians. Need to convert it to seconds
-  my $offset_sec = $offset * Astro::SLA::DR2S;
-
-#  print "# Offset is $offset_sec seconds\n";
-
-  # If we are not the Sun we need to convert this to sidereal
-  # time from solar time
-  $offset_sec *= 365.2422/366.2422
-    unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
-
-  # Generate a new Time::Piece
+  # The current best guess of the meridian time
   my $mtime;
-  if (blessed($next) eq 'DateTime') {
-    $mtime = $next + new DateTime::Duration( seconds => $offset_sec );
-  } else {
-    $mtime = $next + $offset_sec;
+
+  # Number of times we want to loop before aborting
+  my $max = 10;
+
+  # Tolerance for good convergence
+  my $tol = 1;
+
+  # Increment (in hours) to jump forward each loop
+  # Need to make sure we lock onto the correct transit so I'm
+  # wary of jumping forward by exactly 24 hours
+  my $inc = 12;
+  $inc = 6 if lc($self->name) eq 'moon';
+
+  # Loop until mtime is greater than the reftime
+  # and (mtime - prevtime) is smaller than a second
+  # and we have not looped more than $max times
+  # There is probably an analytical solution. The problem is that
+  # the apparent RA depends on the current time yet the apparent RA
+  # varies with time
+  my $count = 0;
+  print "Looping..............$reftime\n" if $DEBUG;
+  while ( $count <= $max ) {
+    $count++;
+
+    if (defined $mtime) {
+      $prevtime = _clone_time( $mtime );
+      $self->datetime( $mtime );
+    }
+    $mtime = $self->_local_mtcalc();
+    print "New meridian time: $mtime\n" if $DEBUG;
+
+    # if we want to make sure we have the next transit, we need
+    # to compare the calculated time with the reference time
+    if (!$opts{nearest}) {
+
+      # Calculate the difference in epoch seconds before the current
+      # object reference time and the calculate transit time.
+      # Use ->epoch rather than overload since I'm having problems
+      # with Duration objects
+      my $diff = $reftime->epoch - $mtime->epoch;
+      if ($diff > 0) {
+	print "Need to offset....\n" if $DEBUG;
+	# this is an earlier transit time
+	# Need to keep jumping forward until we lock on to a meridian
+	# time that ismore recent than the ref time
+	if ($dtime) {
+	  $mtime->add( hours => ($count * $inc));
+	} else {
+	  $mtime = $mtime + ($count * $inc * Time::Seconds::ONE_HOUR);
+	}
+      }
+    }
+
+    # End loop if the difference between meridian time and calculated
+    # previous time is less than the acceptable tolerance
+    if (defined $prevtime && defined $mtime) {
+      last if (abs($mtime->epoch - $prevtime->epoch) <= $tol);
+    }
   }
+
+  # warn if we did not converge
+  carp "Meridian time calculation failed to converge"
+     if $count > $max;
 
   # Reset the clock
   if ($havetime) {
-    $self->datetime( $time );
+    $self->datetime( $reftime );
   } else {
     $self->datetime( undef );
   }
 
   # return the time
   return $mtime;
+}
+
+# Returns true if 
+#    time - reftime is negative
+
+# Returns RA-LST added on to reference time
+sub _local_mtcalc {
+  my $self = shift;
+
+  # Now calculate the offset from the RA of the source.
+  # Note that RA should be apparent RA and so the time should
+  # match the actual time stored in the object.
+  # Make sure the LST and Apparent RA are -PI to +PI
+  # so that we do not jump whole days
+  my $lst = Astro::SLA::slaDrange($self->_lst);
+  my $ra_app = Astro::SLA::slaDrange( $self->ra_app );
+  my $offset = $ra_app - $lst;
+
+  # This is in radians. Need to convert it to seconds
+  my $offset_sec = $offset * Astro::SLA::DR2S;
+
+#  print "LST:            $lst\n";
+#  print "RA App:         ". $self->ra_app ."\n";
+#  print "Offset radians: $offset\n";
+#  print "Offset seconds: $offset_sec\n";
+
+  # If we are not the Sun we need to convert this to sidereal
+  # time from solar time
+  $offset_sec *= 365.2422/366.2422
+    unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
+
+  my $datetime = $self->datetime;
+  if ($datetime->isa('Time::Piece')) {
+    return ($datetime + $offset_sec);
+  } else {
+    return $datetime->clone->add( seconds => $offset_sec );
+  }
+
+#  return $mtime;
 }
 
 =item B<transit_el>
@@ -1182,6 +1273,7 @@ sub _lst {
   my $long = (defined $tel ? $tel->long : 0.0 );
 
   # Return the first arg
+  # Note that we guarantee a UT time representation
   return (Astro::SLA::ut2lst( $time->year, $time->mon,
 			      $time->mday, $time->hour,
 			      $time->min, $time->sec, $long))[0];
@@ -1206,6 +1298,8 @@ sub _azel {
 }
 
 =back
+
+=begin __PRIVATE_METHODS__
 
 =head2 Private Methods
 
@@ -1393,7 +1487,53 @@ sub _mjd_tt {
   return $mjd;
 }
 
+=item B<_clone_time>
+
+Internal routine to copy a Time::Piece or DateTime object
+into a new object for internal storage.
+
+  $clone = _clone_time( $orig );
+
+=cut
+
+sub _clone_time {
+  my $input = shift;
+  return unless defined $input;
+
+  if (UNIVERSAL::isa($input, "Time::Piece")) {
+    return Time::Piece::gmtime( $input->epoch );
+  } elsif (UNIVERSAL::isa($input, "DateTime")) {
+    return DateTime->from_epoch( epoch => $input->epoch, 
+			         time_zone => 'UTC' );
+  }
+  return;
+}
+
+=item B<_cmp_time>
+
+Compares two times (assuming the same class)
+
+  $cmp = _cmp_time( $a, $b );
+
+Returns 1 if $a > $b (epoch)
+       -1 if $a < $b (epoch)
+        0 if $a == $b (epoch)
+
+Currently assumes epoch is enough for comparison.
+
+=cut
+
+sub _cmp_time {
+  my $t1 = shift;
+  my $t2 = shift;
+  my $e1 = $t1->epoch;
+  my $e2 = $t2->epoch;
+  return $e1 <=> $e2;
+}
+
 =back
+
+=end __PRIVATE_METHODS__
 
 =head1 CONSTANTS
 

@@ -1,3 +1,12 @@
+2004-10-22  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm (meridian_time): Add "nearest" to allow the
+	search to track backwards. Use iterative technique to find the
+	meridian time for fast moving objects (moon now works).
+	(rise_time): Add "nearest" option to allow back tracking
+	DateTime support now much tidier.
+	
+
 2004-10-20  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm: Support DateTime
