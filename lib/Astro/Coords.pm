@@ -711,9 +711,11 @@ Calculate target positions for a range of times.
 		       );
 
 The start and end times are Time::Piece objects and the increment is a
-Time::Seconds object. If the end time will not necessarily be used
-explictly if the increment does not divide into the total time
-gap exactly. None of the returned times will exceed the end time.
+Time::Seconds object or an integer. If the end time will not
+necessarily be used explictly if the increment does not divide into
+the total time gap exactly. None of the returned times will exceed the
+end time. The increment must be greater than zero but the start and end
+times can be identical.
 
 Returns an array of hashes. Each hash contains 
 
@@ -735,6 +737,13 @@ sub calculate {
   croak "No start time specified" unless exists $opts{start};
   croak "No end time specified" unless exists $opts{end};
   croak "No time increment specified" unless exists $opts{inc};
+
+  # Get the increment as an integer
+  my $inc = $opts{inc};
+  if (UNIVERSAL::isa($inc, "Time::Seconds")) {
+    $inc = $inc->seconds;
+  }
+  croak "Increment must be greater than zero" unless $inc > 0;
 
   $opts{units} = 'rad' unless exists $opts{units};
 
@@ -764,7 +773,7 @@ sub calculate {
     push(@data, \%timestep);
 
     # increment the time
-    $current += $opts{inc};
+    $current += $inc;
 
   }
 

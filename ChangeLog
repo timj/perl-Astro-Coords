@@ -1,3 +1,7 @@
+2003-03-12  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm (calculate): Trap zero increment
+
 2003-02-18  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm: Add lst to the return hash in calculate method
