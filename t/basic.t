@@ -14,8 +14,8 @@ my $c = new Astro::Coords( ra => "15:22:33.3",
 
 print "#J2000: $c\n";
 # Compare with J2000 values
-ok("15:25:7.35", $c->ra(format=>'s'));
-ok("-0:23:35.76", $c->dec(format=>'s'));
+ok(" 15:25:07.35", $c->ra(format=>'s'));
+ok("-00:23:35.76", $c->dec(format=>'s'));
 
 # Calculate distance
 my $c2 = new Astro::Coords(ra => "15:22:33.3",
@@ -228,7 +228,7 @@ $c->telescope( $tel );
 # Time is in UT not localtime
 $time = _gmstrptime("1997-10-24T16:58:32");
 #$time = _gmstrptime("1997-10-24T16:57:12");
-#$time = _gmstrptime("1997-10-24T18:00:00");
+$time = _gmstrptime("1997-10-24T17:00:00");
 
 $c->datetime( $time );
 print "# MJD: " . $c->datetime->mjd ."\n";
@@ -240,7 +240,7 @@ ok(sprintf("%.3f",$c->el(format => 'd')), '22.168');
 print "# RA: " . $c->ra_app(format => 's') . "\n";
 print "# Dec: " . $c->dec_app(format => 's') . "\n";
 
-
+#print $c->status;
 
 
 exit;
