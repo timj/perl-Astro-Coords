@@ -1,3 +1,8 @@
+2005-02-04  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm (_iterative_el): Fix case when moon almost
+	sets but doesn't quite make it (thanks for bug report from Beat Vontobel)
+
 2005-01-05  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords/Equatorial.pm: Can not use vdiff in the radec

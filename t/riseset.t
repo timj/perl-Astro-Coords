@@ -4,7 +4,7 @@
 # Test using both DateTime and Time::Piece
 
 use strict;
-use Test::More tests => 269;
+use Test::More tests => 270;
 use Time::Piece qw/ :override /;
 use DateTime;
 use DateTime::TimeZone;
@@ -235,7 +235,26 @@ for my $targ (sort keys %data) {
   }
 }
 
+# Test edge case for moon that doesn't set
+# This test from Beat Vontobel.
+my $moon2 = new Astro::Coords( planet => 'MOON' );
 
+my $place = new Astro::Telescope(Name => 'test',
+                                 Long => 18.41 * Astro::SLA::DD2R,
+                                 Lat =>  64.80 * Astro::SLA::DD2R,
+                                 Alt =>  0);
+
+my $time = DateTime->new(year => 2005,
+                         month => 01,
+                         day => 20,
+                         hour => 8,
+                         minute => 11,
+                         second => 41);
+
+$moon2->telescope($place);
+$moon2->datetime($time);
+my $set = $moon2->set_time();
+is($set, undef, "Moon does not set");
 
 exit;
 

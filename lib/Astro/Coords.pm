@@ -1267,7 +1267,8 @@ sub rise_time {
 		 $self->_default_horizon );
 
   # Verify convergence
-  $self->_iterative_el( $refel, 1 );
+  my $convok = $self->_iterative_el( $refel, 1 );
+  return undef unless $convok;
   $rise = $self->datetime;
 
   # Reset the clock
@@ -1359,8 +1360,8 @@ sub set_time {
     # since the approximation should be more accurate than that
     if ( $reftime->epoch - $set->epoch < 3600 ) {
       $self->datetime( $set );
-      $self->_iterative_el( $refel, -1 );
-      $set = $self->datetime;
+      my $convok = $self->_iterative_el( $refel, -1 );
+      $set = ( $convok ? $self->datetime : undef );
 
       # and restore the reference date
       # Reset the clock
@@ -1448,7 +1449,7 @@ sub ha_set {
     # for the moon this routine can incorrectly determine
     # cos HA near transit [in fact it always will be inaccurate
     # but near transit it won't return any value at all]
-    # Calculate tranist elevation and if it is grater than the
+    # Calculate transit elevation and if it is greater than the
     # requested "horizon" use an iterative technique to find the
     # set time.
     if ($self->transit_el > $horizon) {
@@ -1456,7 +1457,10 @@ sub ha_set {
       my $havedt = $self->has_datetime;
       my $mt = $self->meridian_time();
       $self->datetime( $mt );
-      $self->_iterative_el( $horizon, -1 );
+      print "# Calculating iterative set time for HA determination\n"
+         if $DEBUG;
+      my $convok = $self->_iterative_el( $horizon, -1 );
+      return undef unless $convok;
       my $seconds = $self->datetime->epoch - $mt->epoch;
       $cos_ha0 = cos( $seconds * Astro::SLA::DS2R );
       $self->datetime( ($havedt ? $reftime : undef ) );
@@ -2223,8 +2227,8 @@ for both DateTime and Time::Piece objects.
 sub _cmp_time {
   my $t1 = shift;
   my $t2 = shift;
-  my $e1 = $t1->epoch;
-  my $e2 = $t2->epoch;
+  my $e1 = (defined $t1 ? $t1->epoch : 0);
+  my $e2 = (defined $t2 ? $t2->epoch : 0);
   return $e1 <=> $e2;
 }
 
@@ -2251,7 +2255,7 @@ object may lead to inaccuracies of a few minutes (maybe even 10s of minutes).
 It is called by both C<set_time> and C<rise_time> to converge on an accurate
 time of elevation.
 
-  $self->_iterative_el( $refel, $grad );
+  $status = $self->_iterative_el( $refel, $grad );
 
 The required elevation must be supplied (in radians). The second
 argument indicates whether we are looking for a solution with a
@@ -2265,6 +2269,8 @@ elevation.
 
 The algorithm used for this routine is very simple. Try not to call it
 repeatedly.
+
+Returns undef if the routine did not converge.
 
 =cut
 
@@ -2313,7 +2319,7 @@ sub _iterative_el {
 	# see if which way we should be moving
 	if ( abs($prevel - $refel) < abs( $el - $refel )) {
 	  # the gap between the previous measurement and the reference
-	  # is smaller than the current gap. We seem to be diverging.
+ 	  # is smaller than the current gap. We seem to be diverging.
 	  # Change direction
 	  $sign *= -1;
 	  # and use half the step size
@@ -2322,6 +2328,8 @@ sub _iterative_el {
 	  # in the linear approximation
 	  # we know the gradient
 
+	  # we are not going to converge
+	  return undef if $inc < 0.1;
 	}
       }
 
@@ -2340,11 +2348,12 @@ sub _iterative_el {
       # recalculate the elevation, storing the previous as reference
       $prevel = $el;
       $el = $self->el;
-      print "# New elevation: ". $self->el(format=>'deg')." \t@ ".$time->datetime."\n"
+      print "# New elevation: ". $self->el(format=>'deg')." \t@ ".$time->datetime." with delta $delta sec\n"
 	if $DEBUG;
     }
 
   }
+  return 1;
 }
 
 =item B<_isdt>
