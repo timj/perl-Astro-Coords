@@ -17,6 +17,6 @@ WriteMakefile(
 	       'dist'           => { COMPRESS => "gzip -9f"},
 	       ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
 	       ( ABSTRACT_FROM  => $file,
-		 AUTHOR         => 'Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt>') : ()),
+		 AUTHOR         => 'Tim Jenness E<lt>tjenness@cpan.orgE<gt>') : ()),
              );
 
