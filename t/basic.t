@@ -5,7 +5,7 @@ BEGIN { plan tests => 61 }
 
 use Astro::Coords;
 use Astro::Telescope;
-use Time::Object;
+use Time::Piece;
 
 # Simulataneously test negative zero dec and B1950 to J2000 conversion
 my $c = new Astro::Coords( ra => "15:22:33.3",
