@@ -1,7 +1,7 @@
 use strict;
 use Test;
 
-BEGIN { plan tests => 61 }
+BEGIN { plan tests => 67 }
 
 use Astro::Coords;
 use Astro::Telescope;
