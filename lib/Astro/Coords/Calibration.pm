@@ -79,6 +79,31 @@ sub array {
   return ($self->type,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef);
 }
 
+=item B<status>
+
+Return a status string describing the current coordinates. For calibration
+objects this is very simple.
+
+=cut
+
+sub status {
+  my $self = shift;
+  my $string;
+
+  $string .= "Coordinate type:CAL\n";
+  if (defined $self->telescope) {
+    $string .= "Telescope:      " . $self->telescope->fullname . "\n";
+    if ($self->isObservable) {
+      $string .= "The target is currently observable\n";
+    } else {
+      $string .= "The target is not currently observable\n";
+    }
+  }
+
+  return $string;
+
+}
+
 =item B<isObservable>
 
 Determines whether the observation is observable. Since a calibration
