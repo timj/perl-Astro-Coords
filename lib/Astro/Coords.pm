@@ -74,6 +74,7 @@ time must be provided.
 use 5.006;
 use strict;
 use warnings;
+use warnings::register;
 use Carp;
 
 our $VERSION = '0.05';
@@ -96,6 +97,9 @@ use constant SUN_RISE_SET => ( - (50 * 60) * Astro::SLA::DAS2R); # 50 arcmin
 use constant CIVIL_TWILIGHT => ( - (6 * 3600) * Astro::SLA::DAS2R); # 6 deg
 use constant NAUT_TWILIGHT => ( - (12 * 3600) * Astro::SLA::DAS2R); # 12 deg
 use constant AST_TWILIGHT => ( - (18 * 3600) * Astro::SLA::DAS2R); # 18 deg
+
+# This is a fudge. Not accurate
+use constant MOON_RISE_SET => ( 5 * 60 * Astro::SLA::DAS2R);
 
 =head1 METHODS
 
@@ -1201,7 +1205,8 @@ other values.
 
 An optional final argument can be used to indicate that the supplied
 string is in hours rather than degrees. This is only used when
-units is set to "sexagesimal".
+units is set to "sexagesimal". Warnings are issued if the
+string can not be parsed or the values are out of range.
 
 Returns undef on error.
 
@@ -1236,7 +1241,7 @@ sub _cvt_torad {
   }
 
   # Now process the input - starting with strings
-  my $output;
+  my $output = 0;
   if ($units =~ /^s/) {
 
     # Need to clean up the string for slalib
@@ -1246,8 +1251,18 @@ sub _cvt_torad {
     Astro::SLA::slaDafin( $input, $nstrt, $output, my $j);
     $output = undef unless $j == 0;
 
+    if ($j == -1) {
+      warnings::warnif "In coordinate '$input' the degrees do not look right";
+    } elsif ($j == -2) {
+      warnings::warnif "In coordinate '$input' the minutes field is out of range";
+    } elsif ($j == -3) {
+      warnings::warnif "In coordinate '$input' the seconds field is out of range (0-59.9)";
+    } elsif ($j == 1) {
+      warnings::warnif "Unable to find plausible coordinate in string '$input'";
+    }
+
     # If we were in hours we need to multiply by 15
-    $output *= 15.0 if $hms;
+    $output *= 15.0 if (defined $output && $hms);
 
   } elsif ($units =~ /^h/) {
     # Hours in decimal
