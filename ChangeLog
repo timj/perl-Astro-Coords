@@ -1,3 +1,7 @@
+2002-08-04  Tim Jenness  <t.jenness@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm (usenow): Add usenow method
+
 2002-08-03  Tim Jenness  <t.jenness@jach.hawaii.edu>
 
 	* t/basic.t: Test now works for orbital elements

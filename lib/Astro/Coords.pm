@@ -268,8 +268,9 @@ Argument must be of type C<Time::Piece> (or C<Time::Object> version
 1.00). The method dies if this is not the case [it must support an
 C<mjd> method].
 
-If no argument is specified an object referring to the current time
-(GMT/UT) is returned.
+If no argument is specified, or C<usenow> is set to true, an object
+referring to the current time (GMT/UT) is returned. If a new argument
+is supplied C<usenow> is always set to false.
 
 =cut
 
@@ -281,8 +282,35 @@ sub datetime {
       . ( ref($time) ? ref($time) : $time) ."]"
       unless (UNIVERSAL::can($time, "mjd"));
     $self->{DateTime} = $time;
+    $self->usenow(0);
   }
-  return (defined $self->{DateTime} ? $self->{DateTime} : gmtime );
+  if (defined $self->{DateTime} && ! $self->usenow) {
+    return $self->{DateTime};
+  } else {
+    return gmtime;
+  }
+}
+
+=item B<usenow>
+
+Flag to indicate whether the current time should be used for calculations
+regardless of whether an explicit time object is stored in C<datetime>.
+This is useful when trying to determine the current position of a target
+without affecting previous settings.
+
+  $c->usenow( 1 );
+  $usenow = $c->usenow;
+
+Defaults to false.
+
+=cut
+
+sub usenow {
+  my $self = shift;
+  if (@_) {
+    $self->{UseNow} = shift;
+  }
+  return $self->{UseNow};
 }
 
 =back
