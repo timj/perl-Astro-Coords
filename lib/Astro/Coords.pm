@@ -179,11 +179,14 @@ sub new {
 
     # For elements we must not only check for the elements key
     # but also make sure that that key points to a hash containing
-    # at least the EPOCH key
+    # at least the EPOCH or EPOCHPERIH key
     if (exists $args{elements} and defined $args{elements}
-       and UNIVERSAL::isa($args{elements},"HASH") 
-       and exists $args{elements}{EPOCH}
-       and defined $args{elements}{EPOCH}) {
+       && UNIVERSAL::isa($args{elements},"HASH") 
+       &&  (exists $args{elements}{EPOCH}
+       and defined $args{elements}{EPOCH})
+       ||  (exists $args{elements}{EPOCHPERIH}
+       and defined $args{elements}{EPOCHPERIH})
+     ) {
 
       $obj = new Astro::Coords::Elements( %args );
 

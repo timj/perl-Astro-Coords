@@ -104,8 +104,10 @@ sub new {
     && ref($opts{elements}) eq "HASH");
 
   # Sanity check
-  for (qw/ EPOCH ORBINC ANODE PERIH AORQ E/) {
-    return undef unless exists $opts{elements}->{$_};
+  for (qw/ ORBINC ANODE PERIH AORQ E/) {
+    #return undef unless exists $opts{elements}->{$_};
+    croak "Must supply element $_ to constructor"
+      unless exists $opts{elements}->{$_};
   }
 
   # Fix up EPOCHs if it has been specified as a string
