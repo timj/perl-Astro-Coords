@@ -1,5 +1,8 @@
 2003-08-19  Tim Jenness  <timj@jach.hawaii.edu>
 
+	* lib/Astro/Coords/Equatorial.pm (new): Do not instantiate an
+	object if something is missing from the constructor.
+
 	* lib/Astro/Coords.pm (ha_set: Deal with case where source never
 	has a set time 
 

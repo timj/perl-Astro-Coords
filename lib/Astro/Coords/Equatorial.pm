@@ -95,6 +95,7 @@ sub new {
   my ($ra, $dec);
   if ($args{type} eq "J2000") {
     return undef unless exists $args{ra} and exists $args{dec};
+    return undef unless defined $args{ra} and defined $args{dec};
 
     # nothing to do except convert to radians
     $ra = $args{ra};
@@ -102,16 +103,19 @@ sub new {
 
   } elsif ($args{type} eq "B1950") {
     return undef unless exists $args{ra} and exists $args{dec};
+    return undef unless defined $args{ra} and defined $args{dec};
 
     Astro::SLA::slaFk45z( $args{ra}, $args{dec}, 1950.0, $ra, $dec);
 
   } elsif ($args{type} eq "GALACTIC") {
     return undef unless exists $args{long} and exists $args{lat};
+    return undef unless defined $args{long} and defined $args{lat};
 
     Astro::SLA::slaGaleq( $args{long}, $args{lat}, $ra, $dec);
 
   } elsif ($args{type} eq "SUPERGALACTIC") {
     return undef unless exists $args{long} and exists $args{lat};
+    return undef unless defined $args{long} and defined $args{lat};
 
     Astro::SLA::slaSupgal( $args{long}, $args{lat}, my $glong, my $glat);
     Astro::SLA::slaGaleq( $glong, $glat, $ra, $dec);
