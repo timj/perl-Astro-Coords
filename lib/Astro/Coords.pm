@@ -98,7 +98,9 @@ use Astro::Coords::Interpolated;
 use Astro::Coords::Fixed;
 use Astro::Coords::Calibration;
 
-use Time::Piece  qw/ :override /, '1.00'; # override gmtime
+use Scalar::Util qw/ blessed /;
+use DateTime;
+use Time::Piece;
 
 # Constants for Sun rise/set and twilight definitions
 # Elevation in radians
@@ -290,16 +292,18 @@ Date/Time object to use when determining the source elevation.
 
   $c->datetime( new Time::Piece() );
 
-Argument must be of type C<Time::Piece> (or C<Time::Object> version
-1.00). The method dies if this is not the case [it must support an
-C<mjd> method]. A value of C<undef> is supported. This will clear
-the time and force the current time to be used on subsequent calls.
+Argument must be an object that has the C<mjd> method. Both
+C<DateTime> and C<Time::Piece> objects are allowed.  A value of
+C<undef> is supported. This will clear the time and force the current
+time to be used on subsequent calls.
 
   $c->datetime( undef );
 
 If no argument is specified, or C<usenow> is set to true, an object
-referring to the current time (GMT/UT) is returned. If a new argument
-is supplied C<usenow> is always set to false.
+referring to the current time (GMT/UT) is returned. This object may be
+either a C<Time::Piece> object or a C<DateTime> object depending on
+current implementation. If a new argument is supplied C<usenow> is
+always set to false.
 
 =cut
 
@@ -318,7 +322,7 @@ sub datetime {
   if (defined $self->{DateTime} && ! $self->usenow) {
     return $self->{DateTime};
   } else {
-    return gmtime;
+    return DateTime->now;
   }
 }
 
@@ -764,22 +768,27 @@ Calculate target positions for a range of times.
 		         units => 'deg'
 		       );
 
-The start and end times are Time::Piece objects and the increment is a
-Time::Seconds object or an integer. If the end time will not
-necessarily be used explictly if the increment does not divide into
-the total time gap exactly. None of the returned times will exceed the
-end time. The increment must be greater than zero but the start and end
-times can be identical.
+The start and end times are either C<Time::Piece> or C<DateTime>
+objects and the increment is either a C<Time::Seconds> object, a
+C<DateTime::Duration> object (in fact, an object that implements the
+C<seconds> method) or an integer. If the end time will not necessarily
+be used explictly if the increment does not divide into the total time
+gap exactly. None of the returned times will exceed the end time. The
+increment must be greater than zero but the start and end times can be
+identical.
 
 Returns an array of hashes. Each hash contains 
 
-  time [Time::Piece object]
+  time [same object class as provided as argument]
   elevation
   azimuth
   parang
   lst [always in radians]
 
 The angles are in the units specified (radians, degrees or sexagesimal).
+
+Note that this method returns C<DateTime> objects if it was given C<DateTime>
+objects, else it returns C<Time::Piece> objects.
 
 =cut
 
@@ -792,25 +801,44 @@ sub calculate {
   croak "No end time specified" unless exists $opts{end};
   croak "No time increment specified" unless exists $opts{inc};
 
-  # Get the increment as an integer
+  # Get the increment as an integer (DateTime::Duration or Time::Seconds)
   my $inc = $opts{inc};
-  if (UNIVERSAL::isa($inc, "Time::Seconds")) {
+  if (UNIVERSAL::can($inc, "seconds")) {
     $inc = $inc->seconds;
   }
   croak "Increment must be greater than zero" unless $inc > 0;
 
   $opts{units} = 'rad' unless exists $opts{units};
 
+  # Determine date class to use for calculations
+  my $dateclass = blessed( $opts{start} );
+  croak "Start time must be either Time::Piece or DateTime object"
+    if (!$dateclass || 
+	($dateclass ne "Time::Piece" && $dateclass ne 'DateTime' ));
+
   my @data;
-  my $current = gmtime( $opts{start}->epoch );
+
+  # Get a private copy of the date object for calculations
+  # (copy constructor)
+  my $current;
+  if ($dateclass eq 'DateTime') {
+    $current = DateTime->from_epoch( epoch => $opts{start}->epoch );
+  } else {
+    $current = Time::Piece::gmtime( $opts{start}->epoch );
+  }
 
   while ( $current->epoch <= $opts{end}->epoch ) {
 
     # Hash for storing the data
     my %timestep;
 
-    # store the time
-    $timestep{time} = gmtime( $current->epoch );
+    # store a copy of the time
+    if ($dateclass eq 'DateTime') {
+      $timestep{time} = DateTime->from_epoch( epoch => $current->epoch );
+    } else {
+      $timestep{time} = Time::Piece::gmtime( $current->epoch );
+    }
+
 
     # Set the time in the object
     # [standard problem with knowing whether we are overriding
@@ -865,15 +893,28 @@ sub rise_time {
   # Calculate the transit time
   my $mt = $self->meridian_time;
 
-  my $rise = $mt - $ha_set;
-
-  # If the rise time has already happened return undef
-  if ($rise - $self->datetime > 0) {
-    return $rise;
-  } else {
-    return;
+  if (blessed($mt) eq 'DateTime') {
+    $ha_set = new DateTime::Duration( seconds => $ha_set );
   }
 
+  # Calculate rise time by subtracting the hour angle
+  my $rise = $mt - $ha_set;
+
+  # DateTime refuses to overload compare 
+  if (blessed($rise) eq 'DateTime') {
+    my $duration = $rise - $self->datetime;
+    if ($duration->is_positive) {
+      return $rise;
+    }
+  } else {
+
+    # If the rise time has already happened return undef
+    if ($rise - $self->datetime > 0) {
+      return $rise;
+    }
+
+  }
+  return;
 }
 
 =item B<set_time>
@@ -906,17 +947,28 @@ sub set_time {
   # Calculate the transit time
   my $mt = $self->meridian_time;
 
+  if (blessed($mt) eq 'DateTime') {
+    $ha_set = new DateTime::Duration( seconds => $ha_set );
+  }
+
   my $set = $mt + $ha_set;
 
 #  print "MT: $mt  HA Set: $ha_set and Set time $set\n";
 
   # If the rise time has already happened return undef
-  if ($set - $self->datetime > 0) {
-    return $set;
-  } else {
-    return;
-  }
 
+  # DateTime refuses to overload compare 
+  if (blessed($set) eq 'DateTime') {
+    my $duration = $set - $self->datetime;
+    if ($duration->is_positive) {
+      return $set;
+    }
+  } else {
+    if ($set - $self->datetime > 0) {
+      return $set;
+    }
+  }
+  return;
 }
 
 =item B<ha_set>
@@ -1009,12 +1061,25 @@ sub meridian_time {
 
   # Add on 24 hours to go to the next day (so we can drop
   # H:M:S)
-  my $next = $time + Time::Seconds::ONE_DAY;
+  my $next;
+  if (blessed($time) eq 'DateTime') {
+    # Copy the date and increment to next day
+    $next = $time + new DateTime::Duration( days => 1 );
 
-  # Need to clear the HMS part so we have midnight
-  $next = $next - ( $next->hour * Time::Seconds::ONE_HOUR +
-		    $next->min * Time::Seconds::ONE_MINUTE +
-		    $next->sec );
+    # create new object for that day so we go to next midnight
+    $next = new DateTime( year => $next->year,
+			  month => $next->month,
+			  day => $next->day,
+			);
+  } else {
+    # increment by one day
+    $next = $time + Time::Seconds::ONE_DAY;
+
+    # Need to clear the HMS part so we have midnight
+    $next = $next - ( $next->hour * Time::Seconds::ONE_HOUR +
+		      $next->min * Time::Seconds::ONE_MINUTE +
+		      $next->sec );
+  }
 
   # Store the new time
   $self->datetime( $next );
@@ -1037,7 +1102,12 @@ sub meridian_time {
     unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
 
   # Generate a new Time::Piece
-  my $mtime = $next + $offset_sec;
+  my $mtime;
+  if (blessed($next) eq 'DateTime') {
+    $mtime = $next + new DateTime::Duration( seconds => $offset_sec );
+  } else {
+    $mtime = $next + $offset_sec;
+  }
 
   # Reset the clock
   if ($havetime) {

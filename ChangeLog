@@ -1,3 +1,9 @@
+2004-10-20  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm: Support DateTime
+
+	* t/riseset.t: Include DateTime and Time::Piece tests
+
 2004-04-12  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords/Equatorial.pm (_ecllonglat): Add ecliptic
