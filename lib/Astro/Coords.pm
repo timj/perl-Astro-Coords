@@ -185,7 +185,7 @@ sub new {
        and exists $args{elements}{EPOCH}
        and defined $args{elements}{EPOCH}) {
 
-      $obj = new Astro::Coords::Elements( elements => $args{elements} );
+      $obj = new Astro::Coords::Elements( %args );
 
     } elsif (exists $args{mjd1}) {
 
