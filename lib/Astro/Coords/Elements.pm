@@ -22,7 +22,8 @@ use warnings;
 
 our $VERSION = '0.01';
 
-use Astro::SLA ();
+# Need working slaPlante
+use Astro::SLA 0.95 ();
 use base qw/ Astro::Coords /;
 
 use overload '""' => "stringify";
