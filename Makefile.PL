@@ -7,7 +7,7 @@ my $file = File::Spec->catfile(File::Spec->curdir, "lib", "Astro",
 
 WriteMakefile( 
                'NAME'           => 'Astro::Coords',
-	       'VERSION_FROM'   => $file,
+	       'VERSION'        => '0.05',
                'PREREQ_PM'      => { 
 				    Astro::SLA => '0.95',
 				    Time::Piece => '1.02',
