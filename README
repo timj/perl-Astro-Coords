@@ -16,8 +16,12 @@ environment. The interfaces may still change slightly.
 Requirements
 ------------
 
-This class uses Astro::SLA, Astro::Telescope and DateTime
+This class uses Astro::SLA, Astro::Telescope as well as
+DateTime and Time::Piece.
 
+This release begins the migration from Time::Piece to DateTime
+for specification of epochs. Both are supported at present but
+at some point Time::Piece support may be removed.
 
 Building
 --------
@@ -31,7 +35,7 @@ Building
 Author
 ------
 
-This module was written by Tim Jenness  <tjenness@cpan.org>
+This module was written by Tim Jenness <tjenness@cpan.org>
 of the Joint Astronomy Centre.
 
 Copyright (C) 2001-2004 Particle Physics and Astronomy Research Council.
