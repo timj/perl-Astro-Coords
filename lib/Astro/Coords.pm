@@ -313,7 +313,12 @@ Get the hour angle for the currently stored LST. Default units are in
 radians.
 
   $ha = $c->ha;
-  $ha = $c->ha( format => "deg" );
+  $ha = $c->ha( format => "h" );
+
+If you wish to normalize the Hour Angle to +/- 12h use the
+normalize key.
+
+  $ha = $c->ha( normalize => 1 );
 
 =cut
 
@@ -322,6 +327,10 @@ sub ha {
   my %opt = @_;
   $opt{format} = "radians" unless defined $opt{format};
   my $ha = $self->_lst - $self->ra_app;
+  # Normalize to +/-pi
+  $ha = Astro::SLA::slaDrange( $ha )
+    if $opt{normalize};
+
   # Convert to hours if we are using a string or hour format
   $ha = $self->_cvt_tohrs( \$opt{format}, $ha);
   return $self->_cvt_fromrad( $ha, $opt{format});
@@ -362,6 +371,26 @@ sub el {
   $opt{format} = "radians" unless defined $opt{format};
   return $self->_cvt_fromrad( ($self->_azel)[1], $opt{format});
 }
+
+=item B<airmass>
+
+Airmass of the source for the currently stored time at the current
+telescope.
+
+  $am = $c->airmass();
+
+Value determined from the current elevation.
+
+=cut
+
+sub airmass {
+  my $self = shift;
+  my $el = $self->el;
+  my $zd = Astro::SLA::DPIBY2 - $el;
+  return Astro::SLA::slaAirmas( $zd );
+}
+
+
 
 =item B<pa>
 
@@ -424,11 +453,7 @@ sub isObservable {
     } elsif ($limits{type} eq 'HADEC') {
 
       # Get the current HA
-      my $ha = $self->ha;
-
-      # Normalize to +/-pi
-      $ha = Astro::SLA::slaDrange( $ha );
-
+      my $ha = $self->ha( normalize => 1 );
 
       if ( $ha > $limits{ha}{min} and $ha < $limits{ha}{max}) {
 	my $dec= $self->dec_app;
