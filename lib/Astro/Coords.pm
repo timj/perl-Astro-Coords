@@ -93,6 +93,8 @@ our $VERSION = '0.07';
 
 use Math::Trig qw/ acos /;
 use Astro::SLA ();
+use Astro::Coords::Angle;
+use Astro::Coords::Angle::Hour;
 use Astro::Coords::Equatorial;
 use Astro::Coords::Elements;
 use Astro::Coords::Planet;
@@ -390,11 +392,66 @@ sub comment {
   return $com;
 }
 
+=item B<native>
+
+Returns the name of the method that should be called to return the
+coordinates in a form as close as possible to those that were supplied
+to the constructor. This method is useful if, say, the object is created
+from Galactic coordinates but internally represented in a different
+coordinate frame.
+
+  $native_method = $c->native;
+
+This method can then be called to retrieve the coordinates:
+
+  ($c1, $c2) = $c->$native_method();
+
+Currently, the native form will not exactly match the supplied form
+if a non-standard equinox has been used, or if proper motions and parallax
+are present, but the resulting answer can be used as a guide.
+
+If no native method is obvious (e.g. for a planet), 'apparent' will
+be returned.
+
+=cut
+
+sub native {
+  my $self = shift;
+  if (@_) {
+    $self->{NativeMethod} = shift;
+  }
+  return (defined $self->{NativeMethod} ? $self->{NativeMethod} : 'apparent' );
+}
+
+
 =back
 
 =head2 General Methods
 
 =over 4
+
+=item B<azel>
+
+Return Azimuth and elevation for the currently stored time and telescope.
+If no telescope is present the equator is used. Returns the Az and El
+as C<Astro::Coords::Angle> objects.
+
+ ($az, $el) = $c->azel();
+
+=cut
+
+sub azel {
+  my $self = shift;
+  my $ha = $self->ha;
+  my $dec = $self->dec_app;
+  my $tel = $self->telescope;
+  my $lat = ( defined $tel ? $tel->lat : 0.0);
+  Astro::SLA::slaDe2h( $ha, $dec, $lat, my $az, my $el );
+  $az = new Astro::Coords::Angle( $az, units => 'rad', range => '2PI' );
+  $el = new Astro::Coords::Angle( $el, units => 'rad' );
+  return ($az, $el);
+}
+
 
 =item B<ra_app>
 
@@ -408,11 +465,9 @@ specified for "dec_app".
 sub ra_app {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  my $ra = ($self->_apparent)[0];
-  # Convert to hours if we are using a string or hour format
-  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
-  return $self->_cvt_fromrad( $ra, $opt{format});
+
+  my $ra = ($self->apparent)[0];
+  return $ra->in_format( $opt{format} );
 }
 
 
@@ -428,37 +483,33 @@ specified for "dec".
 sub dec_app {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_apparent)[1], $opt{format});
+  my $dec = ($self->apparent)[1];
+  return $dec->in_format( $opt{format} );
 }
 
 =item B<ha>
 
-Get the hour angle for the currently stored LST. Default units are in
-radians.
+Get the hour angle for the currently stored LST. By default HA is returned
+as an C<Astro::Coords::Angle::Hour> object.
 
   $ha = $c->ha;
   $ha = $c->ha( format => "h" );
 
-If you wish to normalize the Hour Angle to +/- 12h use the
-normalize key.
-
-  $ha = $c->ha( normalize => 1 );
+By default the Hour Angle will be normalised to +/- 12h if an explicit
+format is specified.
 
 =cut
+
+# normalize key was supported but should its absence imply no normalization?
 
 sub ha {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
   my $ha = $self->_lst - $self->ra_app;
-  # Normalize to +/-pi
-  $ha = Astro::SLA::slaDrange( $ha )
-    if $opt{normalize};
 
-  # Convert to hours if we are using a string or hour format
-  $ha = $self->_cvt_tohrs( \$opt{format}, $ha);
-  return $self->_cvt_fromrad( $ha, $opt{format});
+  # Always normalize?
+  $ha = new Astro::Coords::Angle::Hour( $ha, units => 'rad', range => 'PI' );
+  return $ha->in_format( $opt{format} );
 }
 
 =item B<az>
@@ -475,8 +526,8 @@ If no telescope is defined the equator is used.
 sub az {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_azel)[0], $opt{format});
+  my ($az, $el) = $self->azel();
+  return $az->in_format( $opt{format} );
 }
 
 =item B<el>
@@ -493,8 +544,8 @@ If no telescope is defined the equator is used.
 sub el {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_azel)[1], $opt{format});
+  my ($az, $el) = $self->azel();
+  return $el->in_format( $opt{format} );
 }
 
 =item B<airmass>
@@ -515,25 +566,41 @@ sub airmass {
   return Astro::SLA::slaAirmas( $zd );
 }
 
+=item B<radec>
+
+Return the J2000 Right Ascension and Declination for the target. Unless
+overridden by a subclass, this converts from the apparent RA/Dec to J2000.
+Returns two C<Astro::Coords::Angle> objects.
+
+ ($ra, $dec) = $c->radec();
+
+=cut
+
+sub radec {
+  my $self = shift;
+  my ($ra_app, $dec_app) = $self->apparent;
+  my $mjd = $self->_mjd_tt;
+  Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, 2000.0, my $rm, my $dm);
+  return (new Astro::Coords::Angle::Hour( $rm, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle( $dm, units => 'rad' ));
+}
+
 =item B<ra>
 
 Return the J2000 Right ascension for the target. Unless overridden
-by a subclass this converts the apparrent RA/Dec to J2000.
+by a subclass this converts the apparent RA/Dec to J2000.
 
   $ra2000 = $c->ra( format => "s" );
+
+Calls the C<radec> method.
 
 =cut
 
 sub ra {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  my ($ra_app, $dec_app) = $self->_apparent;
-  my $mjd = $self->_mjd_tt;
-  Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, 2000.0, my $rm, my $dm);
-  # Convert to hours if we are using a string or hour format
-  $rm = $self->_cvt_tohrs( \$opt{format}, $rm);
-  return $self->_cvt_fromrad( $rm, $opt{format});
+  my ($ra,$dec) = $self->radec;
+  return $ra->in_format( $opt{format} );
 }
 
 =item B<dec>
@@ -543,16 +610,193 @@ by a subclass this converts the apparrent RA/Dec to J2000.
 
   $dec2000 = $c->dec( format => "s" );
 
+Calls the C<radec> method.
+
 =cut
 
 sub dec {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  my ($ra_app, $dec_app) = $self->_apparent;
-  my $mjd = $self->_mjd_tt;
-  Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, 2000.0, my $rm, my $dm);
-  return $self->_cvt_fromrad( $dm, $opt{format});
+  my ($ra,$dec) = $self->radec;
+  return $dec->in_format( $opt{format} );
+}
+
+=item B<glong>
+
+Return Galactic longitude. Arguments are similar to those specified
+for "dec".
+
+  $glong = $c->glong( format => "s" );
+
+=cut
+
+sub glong {
+  my $self = shift;
+  my %opt = @_;
+  my ($glong,$glat) = $self->glonglat();
+  return $glong->in_format( $opt{format} );
+}
+
+=item B<glat>
+
+Return Galactic latitude. Arguments are similar to those specified
+for "dec".
+
+  $glat = $c->glat( format => "s" );
+
+=cut
+
+sub glat {
+  my $self = shift;
+  my %opt = @_;
+  my ($glong,$glat) = $self->glonglat();
+  return $glat->in_format( $opt{format} );
+}
+
+=item B<sglong>
+
+Return SuperGalactic longitude. Arguments are similar to those specified
+for "dec".
+
+  $sglong = $c->sglong( format => "s" );
+
+=cut
+
+sub sglong {
+  my $self = shift;
+  my %opt = @_;
+  my ($sglong,$sglat) = $self->sglonglat();
+  return $sglong->in_format( $opt{format} );
+}
+
+=item B<sglat>
+
+Return SuperGalactic latitude. Arguments are similar to those specified
+for "dec".
+
+  $glat = $c->sglat( format => "s" );
+
+=cut
+
+sub sglat {
+  my $self = shift;
+  my %opt = @_;
+  my ($sglong,$sglat) = $self->sglonglat();
+  return $sglat->in_format( $opt{format} );
+}
+
+=item B<ecllong>
+
+Return Ecliptic longitude. Arguments are similar to those specified
+for "dec".
+
+  $eclong = $c->ecllong( format => "s" );
+
+=cut
+
+sub ecllong {
+  my $self = shift;
+  my %opt = @_;
+  my ($eclong,$eclat) = $self->ecllonglat();
+  return $eclong->in_format( $opt{format} );
+}
+
+=item B<ecllat>
+
+Return ecliptic latitude. Arguments are similar to those specified
+for "dec".
+
+  $eclat = $c->ecllat( format => "s" );
+
+=cut
+
+sub ecllat {
+  my $self = shift;
+  my %opt = @_;
+  my ($eclong,$eclat) = $self->ecllonglat();
+  return $eclat->in_format( $opt{format} );
+}
+
+=item B<glonglat>
+
+Calculate Galactic longitude and latitude. Position is calculated for the current
+ra/dec position (as returned by the C<radec> method).
+
+ ($long, $lat) = $c->glonglat;
+
+Answer is returned as two C<Astro::Coords::Angle> objects.
+
+=cut
+
+sub glonglat {
+  my $self = shift;
+  my $ra = $self->ra;
+  my $dec = $self->dec;
+  slaEqgal( $ra, $dec, my $long, my $lat );
+  return (new Astro::Coords::Angle($long, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle($lat, units => 'rad'));
+}
+
+=item B<sglonglat>
+
+Calculate Super Galactic longitude and latitude.
+
+ ($slong, $slat) = $c->sglonglat;
+
+Answer is returned as two C<Astro::Coords::Angle> objects.
+
+=cut
+
+sub sglonglat {
+  my $self = shift;
+  my ($glong, $glat) = $self->glonglat();
+  slaGalsup( $glong, $glat, my $sglong, my $sglat);
+  return (new Astro::Coords::Angle($sglong, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle($sglat, units => 'rad'));
+}
+
+=item B<ecllonglat>
+
+Calculate the ecliptic longitude and latitude for the epoch stored in
+the object. Position is calculated for the current ra/dec position (as
+returned by the C<radec> method.
+
+ ($long, $lat) = $c->ecllonglat();
+
+Answer is returned as two C<Astro::Coords::Angle> objects.
+
+=cut
+
+sub ecllonglat {
+  my $self = shift;
+  my $ra = $self->ra;
+  my $dec = $self->dec;
+  Astro::SLA::slaEqecl( $ra, $dec, $self->_mjd_tt, my $long, my $lat );
+  return (new Astro::Coords::Angle($long, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle($lat, units => 'rad'));
+}
+
+=item B<radec1950>
+
+Return the FK4 B1950 coordinates. In the base class these are
+calculated by precessing the J2000 RA/Dec for the current date and
+time, which are themselves derived from the apparent RA/Dec for the
+current time.
+
+ ($ra, $dec) = $c->radec1950;
+
+Results are returned as two C<Astro::Coords::Angle> objects.
+
+=cut
+
+sub radec1950 {
+  my $self = shift;
+  my ($ra, $dec) = $self->radec;
+
+  Astro::SLA::slaFk54z($ra,$dec,1950.0,my $r1950, my $d1950, my $dr1950, my $dd1950);
+
+  return (new Astro::Coords::Angle::Hour( $r1950, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle( $d1950, units => 'rad' ));
 }
 
 =item B<pa>
@@ -569,12 +813,13 @@ If no telescope is defined the equator is used.
 sub pa {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
   my $ha = $self->ha;
   my $dec = $self->dec_app;
   my $tel = $self->telescope;
   my $lat = ( defined $tel ? $tel->lat : 0.0);
-  return $self->_cvt_fromrad(Astro::SLA::slaPa($ha, $dec, $lat), $opt{format});
+  my $pa = Astro::SLA::slaPa($ha, $dec, $lat);
+  $pa = new Astro::Coords::Angle( $pa, units => 'rad' );
+  return $pa->in_format( $opt{format} );
 }
 
 
@@ -669,10 +914,9 @@ coordinate and a supplied coordinate.
   $dist = $c->distance( $c2 );
   @dist = $c->distance( $c2 );
 
-The distance is returned in radians (but should be some form of angular
-object as should all of the RA and dec coordinates). In list context returns
-the individual "x" and "y" offsets (in radians). In scalar context returns the
-distance.
+In scalar context the distance is returned as an
+C<Astro::Coords::Angle> object In list context returns the individual
+"x" and "y" offsets (as C<Astro::Coords::Angle> objects).
 
 Returns undef if there was an error during the calculation (e.g. because
 the new coordinate was too far away).
@@ -690,9 +934,11 @@ sub distance {
   return () unless $j == 0;
 
   if (wantarray) {
-    return ($xi, $eta);
+    return (new Astro::Coords::Angle($xi, units => 'rad'),
+	    new Astro::Coords::Angle($eta, units => 'rad'));
   } else {
-    return ($xi**2 + $eta**2)**0.5;
+    my $dist = ($xi**2 + $eta**2)**0.5;
+    return new Astro::Coords::Angle( $dist, units => 'rad' );
   }
 }
 
@@ -719,12 +965,14 @@ sub status {
 
   if ($self->type ne 'CAL') {
 
-    $string .= "Elevation:      " . $self->el(format=>'d')." deg\n";
-    $string .= "Azimuth  :      " . $self->az(format=>'d')." deg\n";
-    my $ha = Astro::SLA::slaDrange( $self->ha ) * Astro::SLA::DR2H;
+    my ($az,$el) = $self->azel;
+    $string .= "Elevation:      " . $el->degrees ." deg\n";
+    $string .= "Azimuth  :      " . $az->degrees ." deg\n";
+    my $ha = $self->ha->hours;
     $string .= "Hour angle:     " . $ha ." hrs\n";
-    $string .= "Apparent RA :   " . $self->ra_app(format=>'s')."\n";
-    $string .= "Apparent dec:   " . $self->dec_app(format=>'s')."\n";
+    my ($ra_app, $dec_app) = $self->apparent;
+    $string .= "Apparent RA :   " . $ra_app->string . "\n";
+    $string .= "Apparent dec:   " . $dec_app->string ."\n";
 
     # Transit time
     $string .= "Time of next transit:" . $self->meridian_time->datetime ."\n";
@@ -739,9 +987,10 @@ sub status {
 
     # This check was here before we added a RA/Dec to the
     # base class.
-    if ($self->can('ra')) {
-      $string .= "RA (J2000):     " . $self->ra(format=>'s')."\n";
-      $string .= "Dec(J2000):     " . $self->dec(format=>'s')."\n";
+    if ($self->can('radec')) {
+      my ($ra, $dec) = $self->radec;
+      $string .= "RA (J2000):     " . $ra->string . "\n";
+      $string .= "Dec(J2000):     " . $dec->string . "\n";
     }
   }
 
@@ -758,7 +1007,7 @@ sub status {
 
   $string .= "For time ". $self->datetime->datetime ."\n";
   my $fmt = 's';
-  $string .= "LST: ". $self->_cvt_fromrad($self->_cvt_tohrs(\$fmt,$self->_lst),$fmt) ."\n";
+  $string .= "LST: ". $self->_lst->hours ."\n";
 
   return $string;
 }
@@ -1051,8 +1300,8 @@ specifying a different elevation (in radians).
   $ha = $c->ha_set;
   $ha = $c->ha_set( horizon => $el );
 
-Returned in radians, unless overridden with the "format" key.
-(See the C<ha> method for alternatives).
+Returned by default as an C<Astro::Coords::Angle::Hour> object unless
+an explicit "format" is specified.
 
   $ha = $c->ha_set( horizon => $el, format => 'h');
 
@@ -1080,11 +1329,10 @@ sub ha_set {
   my $self = shift;
 
   # Get the reference horizon elevation
-  my %opts = @_;
+  my %opt = @_;
 
-  my $horizon = (defined $opts{horizon} ? $opts{horizon} :
+  my $horizon = (defined $opt{horizon} ? $opt{horizon} :
 		 $self->_default_horizon );
-  $opts{format}  = 'radians' unless defined $opts{format};
 
   # Get the telescope position
   my $tel = $self->telescope;
@@ -1135,8 +1383,9 @@ sub ha_set {
 #  print "#### in hours: ". ( $ha0 * Astro::SLA::DR2S / 3600)."\n";
 
   # return the result (converting if necessary)
-  $ha0 = $self->_cvt_tohrs( \$opts{format}, $ha0);
-  return $self->_cvt_fromrad( $ha0, $opts{format});
+  return Astro::Coords::Angle::Hour->new( $ha0, units => 'rad',
+					  range => 'PI')->in_format($opt{format});
+
 }
 
 =item B<meridian_time>
@@ -1345,6 +1594,17 @@ sub transit_el {
   return $el;
 }
 
+=back
+
+=begin __PRIVATE_METHODS__
+
+=head2 Private Methods
+
+The following methods are not part of the public interface and can be
+modified or removed for any release of this module.
+
+=over 4
+
 =item B<_lst>
 
 Calculate the LST for the current date/time and
@@ -1372,208 +1632,10 @@ sub _lst {
 
   # Return the first arg
   # Note that we guarantee a UT time representation
-  return (Astro::SLA::ut2lst( $time->year, $time->mon,
-			      $time->mday, $time->hour,
-			      $time->min, $time->sec, $long))[0];
-
-}
-
-=item B<_azel>
-
-Return Azimuth and elevation for the currently stored time and telescope.
-If no telescope is present the equator is used.
-
-Currently an internal routine.
-
-=cut
-
-sub _azel {
-  my $self = shift;
-  my $ha = $self->ha;
-  my $dec = $self->dec_app;
-  my $tel = $self->telescope;
-  my $lat = ( defined $tel ? $tel->lat : 0.0);
-  Astro::SLA::slaDe2h( $ha, $dec, $lat, my $az, my $el );
-  return ($az, $el);
-}
-
-=back
-
-=begin __PRIVATE_METHODS__
-
-=head2 Private Methods
-
-The following methods are not part of the public interface and can be
-modified or removed for any release of this module.
-
-=over 4
-
-=item B<_cvt_tohrs>
-
-Internal routine to scale a value in radians such that it can be translated
-correctly to hours by routines that are assuming output is
-required in degrees (effectively dividing by 15).
-
-  $radhr = $c->_cvt_tohrs( \$format, $rad );
-
-Format is modified to reflect the change expected by
-C<_cvt_fromrad()>. 
-
-=cut
-
-sub _cvt_tohrs {
-  my $self = shift;
-  my ($fmt, $rad) = @_;
-  # Convert to hours if we are using a string or hour format
-  $rad /= 15.0 if defined $rad && $$fmt =~ /^[ash]/;
-  # and reset format to use degrees
-  $$fmt = "degrees" if $$fmt =~ /^h/;
-  return $rad;
-}
-
-=item B<_cvt_fromrad>
-
-Internal routine to convert the supplied value (in radians) to the desired output
-format. Output options are:
-
- sexagesimal - A string of format either dd:mm:ss
- radians     - The default (no change)
- degrees     - decimal degrees
- array       - return a reference to an array containing the
-               sign/degrees/minutes/seconds
-
-If the output is required in hours, pre-divide the radians by 15.0
-prior to calling this routine.
-
-  $out = $c->_cvt_fromrad( $rad, $format );
-
-If the input value is undefined the return value will be undefined.
-
-=cut
-
-sub _cvt_fromrad {
-  my $self = shift;
-  my $in = shift;
-  my $format = shift;
-  $format = '' unless defined $format;
-  return $in unless defined $in;
-
-  if ($format =~ /^d/) {
-    $in *= Astro::SLA::DR2D;
-  } elsif ($format =~ /^[as]/) {
-    my @dmsf;
-    my $res = 2;
-    Astro::SLA::slaDr2af($res, $in, my $sign, @dmsf);
-    if ($format =~ /^a/) {
-      # Store the sign
-      unshift(@dmsf, $sign);
-      # Combine the fraction [assuming fixed precision]
-      my $frac = pop(@dmsf);
-      $dmsf[-1] .= sprintf( ".%0$res"."d",$frac);
-      # Store the reference
-      $in = \@dmsf;
-    } else {
-      $sign = ' ' if $sign eq "+";
-      $in = $sign . sprintf("%02d:%02d:%02d.%0$res"."d",@dmsf);
-    }
-  }
-
-  return $in;
-}
-
-=item B<_cvt_torad>
-
-Internal routine to convert from the supplied units to radians. The following
-units are supported:
-
- sexagesimal - A string of format either dd:mm:ss or "dd mm ss"
- degrees     - decimal degrees
- radians     - radians
- hours       - decimal hours
-
-If units are not supplied (undef) default is to assume "sexagesimal"
-if the supplied string contains spaces or colons, "degrees" if the
-supplied number is greater than 2*PI (6.28), and "radians" for all
-other values.
-
-  $radians = Astro::Coords::Equatorial->_cvt_torad("sexagesimal",
-                                                   "5:22:63")
-
-An optional final argument can be used to indicate that the supplied
-string is in hours rather than degrees. This is only used when
-units is set to "sexagesimal". Warnings are issued if the
-string can not be parsed or the values are out of range.
-
-Returns undef on error.
-
-=cut
-
-# probably need to use a hash argument
-
-sub _cvt_torad {
-  my $self = shift;
-  my $units = shift;
-  my $input = shift;
-  my $hms = shift;
-
-  return undef unless defined $input;
-
-  # Clean up the string
-  $input =~ s/^\s+//g;
-  $input =~ s/\s+$//g;
-
-  # guess the units
-  unless (defined $units) {
-
-    # Now if we have a space or : then we have a real string
-    if ($input =~ /(:|\s)/) {
-      $units = "sexagesimal";
-    } elsif ($input > Astro::SLA::D2PI) {
-      $units = "degrees";
-    } else {
-      $units = "radians";
-    }
-
-  }
-
-  # Now process the input - starting with strings
-  my $output = 0;
-  if ($units =~ /^s/) {
-
-    # Need to clean up the string for slalib
-    $input =~ s/:/ /g;
-
-    my $nstrt = 1;
-    Astro::SLA::slaDafin( $input, $nstrt, $output, my $j);
-    $output = undef unless $j == 0;
-
-    if ($j == -1) {
-      warnings::warnif "In coordinate '$input' the degrees do not look right";
-    } elsif ($j == -2) {
-      warnings::warnif "In coordinate '$input' the minutes field is out of range";
-    } elsif ($j == -3) {
-      warnings::warnif "In coordinate '$input' the seconds field is out of range (0-59.9)";
-    } elsif ($j == 1) {
-      warnings::warnif "Unable to find plausible coordinate in string '$input'";
-    }
-
-    # If we were in hours we need to multiply by 15
-    $output *= 15.0 if (defined $output && $hms);
-
-  } elsif ($units =~ /^h/) {
-    # Hours in decimal
-    $output = $input * Astro::SLA::DH2R;
-
-  } elsif ($units =~ /^d/) {
-    # Degrees decimal
-    $output = $input * Astro::SLA::DD2R;
-
-  } else {
-    # Already in radians
-    $output = $input;
-  }
-
-  return $output;
+  my $lst = (Astro::SLA::ut2lst( $time->year, $time->mon,
+				 $time->mday, $time->hour,
+				 $time->min, $time->sec, $long))[0];
+  return new Astro::Coords::Angle::Hour( $lst, units => 'rad', range => '2PI');
 }
 
 =item B<_mjd_tt>
