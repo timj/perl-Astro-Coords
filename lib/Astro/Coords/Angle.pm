@@ -245,11 +245,7 @@ sub components {
   # Convert to components using slalib. COCO uses 4 dp for high
   # resolution.
   $res = 5 unless defined $res;
-  my @dmsf;
-  Astro::SLA::slaDr2af($res, $rad, my $sign, @dmsf);
-
-  # put the sign on to the array
-  unshift(@dmsf, $sign);
+  my @dmsf = $self->_r2f( $res );
 
   # Combine the fraction with the seconds
   my $frac = pop(@dmsf);
@@ -291,9 +287,16 @@ sub string {
 
   # Now build the string.
 
-  # Clear the + sign
+  # Clear the + sign, setting it to empty string if the angle can never
+  # go negative.
   my $sign = shift(@dms);
-  $sign = ' ' if $sign eq '+';
+  if ($sign eq '+') {
+    if ($self->range eq '2PI') {
+      $sign = '';
+    } else {
+      $sign = ' ';
+    }
+  }
 
   # Get the delimiter
   my $delim = $self->str_delim;
@@ -621,6 +624,24 @@ sub _guess_units {
   return $units;
 }
 
+=item B<_r2f>
+
+Routine to convert angle in radians to a formatted array
+of numbers in order of sign, deg, min, sec, frac.
+
+  @retval = $ang->_r2f( $ndp );
+
+Note that the number of decimal places is an argument.
+
+=cut
+
+sub _r2f {
+  my $self = shift;
+  my $res = shift;
+  my @dmsf;
+  Astro::SLA::slaDr2af($res, $self->radians, my $sign, @dmsf);
+  return ($sign, @dmsf);
+}
 
 =back
 
