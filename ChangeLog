@@ -1,3 +1,11 @@
+2004-02-25  Brad Cavanagh  <b.cavanagh@jach.hawaii.edu>
+
+	* lib/Astro/Coords/Equatorial.pm: Allow for various equinoxes,
+	epochs, and proper motion and parallax handling.
+
+	* t/pm.t: Add test for proper motion and parallax at different
+	epoch and equinox.
+
 2004-02-24  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords/Equatorial.pm: Add ra2000 and dec2000
