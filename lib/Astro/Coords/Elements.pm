@@ -195,7 +195,7 @@ sub array {
   $epoch = $el{EPOCH} unless $epoch;
 
   return ( $self->type, undef, undef,
-	   $el{EPOCHPERIH}, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
+	   $epoch, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
 	   $el{AORQ}, $el{E}, $el{AORL}, $el{DM});
 }
 
