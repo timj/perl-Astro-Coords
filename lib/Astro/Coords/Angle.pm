@@ -31,6 +31,7 @@ use warnings;
 use warnings::register;
 use Carp;
 
+use Scalar::Util qw/ looks_like_number /;
 use Astro::SLA;
 
 # Overloading
@@ -693,9 +694,9 @@ sub _cvt_torad {
 =item B<_guess_units>
 
 Given a string or number, tries to guess the units.  Default is to
-assume "sexagesimal" if the supplied string contains space, colons or
-alphabetic characters, "degrees" if the supplied number is greater
-than 2*PI (6.28), and "radians" for all other values.
+assume "sexagesimal" if the supplied string does not look like a
+number to perl, "degrees" if the supplied number is greater than 2*PI
+(6.28), and "radians" for all other values.
 
   $units = $class->_guess_units( $input );
 
@@ -715,7 +716,8 @@ sub _guess_units {
   # then we have a real string and assume sexagesimal.
   # Use pre-defined character classes
   my $units;
-  if ($input =~ /[:[:space:][:alpha:]]/) {
+  # if it does not look like a number choose sexagesimal
+  if (!looks_like_number($input)) {
     $units = "sexagesimal";
   } elsif ($input > Astro::SLA::D2PI) {
     $units = "degrees";

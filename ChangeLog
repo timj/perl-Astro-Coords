@@ -1,8 +1,14 @@
+2005-02-16  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords/Angle.pm (_guess_units): Use Scalar::Util to
+	determine whether the supplied string is a number. Now requires
+	Scalar::Util v1.13
+
 2005-02-14  Brad Cavanagh <b.cavanagh@jach.hawaii.edu>
 
-  * lib/Astro/Coords/Angle.pm, lib/Astro/Coords/Angle/Hour.pm: Change
-  default delimiter to the colon character to maintain backwards
-  compatibility with v0.05.
+	* lib/Astro/Coords/Angle.pm, lib/Astro/Coords/Angle/Hour.pm:
+	Change default delimiter to the colon character to maintain
+	backwards compatibility with v0.05.
 
 2005-02-04  Tim Jenness  <timj@jach.hawaii.edu>
 
