@@ -60,7 +60,7 @@ the units of the supplied angle.
 
 Supported options are:
 
-  units      - units of the supplied string
+  units      - units of the supplied string or number
   range      - restricted range of the angle
 
 Supported units are:
@@ -69,6 +69,8 @@ Supported units are:
                "dms" separators are also supported.
  degrees     - decimal degrees
  radians     - radians
+ arcsec      - arc seconds (abbreviated form is 'as')
+ arcmin      - arc minutes (abbreviated form is 'am')
 
 The units can be abbreviated to the first 3 characters.
 
@@ -520,6 +522,8 @@ radians. The following units are supported:
                or even "-ddxmmyss.ss" (ie -5x53y28.5z)
  degrees     - decimal degrees
  radians     - radians
+ arcsec      - arc seconds (abbreviated form is 'as')
+ arcmin      - arc minutes (abbreviated form is 'am')
 
 If units are not supplied, default is to call the C<_guess_units>
 method.
@@ -582,6 +586,14 @@ sub _cvt_torad {
     # Degrees decimal
     $output = $input * Astro::SLA::DD2R;
 
+  } elsif ($units =~ /^arcs/ || $units eq 'as') {
+    # Arcsec
+    $output = $input * Astro::SLA::DAS2R;
+
+  } elsif ($units =~ /^arcm/ || $units eq 'am') {
+    # Arcmin
+    $output = $input * Astro::SLA::DAS2R * 60 ;
+
   } else {
     # Already in radians
     $output = $input;
@@ -601,6 +613,8 @@ than 2*PI (6.28), and "radians" for all other values.
 
 Returns undef if the input does not look at all plausible or is undef
 itself.
+
+Arcsec or arcmin can not be determined with this routine.
 
 =cut
 
