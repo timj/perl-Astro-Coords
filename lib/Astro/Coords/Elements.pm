@@ -87,8 +87,13 @@ sub new {
   my $class = ref($proto) || $proto;
 
   my %opts = @_;
-  return undef unless exists $opts{elements}
-    and ref($opts{elements} eq "HASH");
+  return undef unless (exists $opts{elements}
+    && ref($opts{elements}) eq "HASH");
+
+  # Sanity check
+  for (qw/ EPOCH ORBINC ANODE PERIH AORQ E/) {
+    return undef unless exists $opts{elements}->{$_};
+  }
 
 
   # Copy the elements
@@ -191,9 +196,9 @@ sub _apparent {
   my $lat = (defined $tel ? $tel->lat : 0.0 );
   my %el = $self->elements;
   my $jform;
-  if (exists $el{DM}) {
+  if (exists $el{DM} and defined $el{DM}) {
     $jform = 1;
-  } elsif (exists $el{AORL}) {
+  } elsif (exists $el{AORL} and defined $el{AORL}) {
     $jform = 2;
     $el{DM} = 0;
   } else {
