@@ -19,6 +19,7 @@ Astro::Coords::Equatorial - Manipulate equatorial coordinates
                                       units => 'sex',
                                       pm => [ 0.202, 0.286],
                                       parallax => 0.13,
+                                      epoch => 2004.529,
                                       );
 
 
@@ -33,8 +34,8 @@ is treated as a factory constructor).
 
 If proper motions and parallax information are supplied with a
 coordinate it is assumed that the RA/Dec supplied is correct
-for the relevant equinox (ie EPOCH = EQUINOX). It is currently
-not possible to supply coordinates at an alternative epoch.
+for the given epoch. An equinox can be specified through the 'type'
+constructor, where a 'type' of 'J1950' would be Julian epoch 1950.0.
 
 =cut
 
@@ -133,38 +134,104 @@ sub new {
   my $pm2 = $args{pm}->[1];
 
   my ($ra, $dec);
-  if ($args{type} eq "J2000") {
+
+  if ($args{type} =~ /^j([0-9\.]+)/i) {
     return undef unless exists $args{ra} and exists $args{dec};
     return undef unless defined $args{ra} and defined $args{dec};
 
-    # nothing to do except convert to radians
     $ra = $args{ra};
     $dec = $args{dec};
 
-  } elsif ($args{type} eq "B1950") {
+# The equinox is everything after the J.
+    my $equinox = $1;
+
+# Wind the RA/Dec to J2000 if the equinox isn't 2000.
+    if( $equinox != 2000 ) {
+      Astro::SLA::slaPreces( 'FK5', $equinox, '2000.0', $ra, $dec );
+    }
+
+# Get the epoch. If it's not given (in $args{epoch}) then it's
+# the same as the equinox.
+    my $epoch = ( ( exists( $args{epoch} ) && defined( $args{epoch} ) ) ?
+                  $args{epoch} :
+                  $equinox );
+
+# Wind the RA/Dec to epoch 2000.0 if the epoch isn't 2000.0,
+# taking the proper motion and parallax into account.
+    if( $epoch != 2000 &&
+        ( $pm1 != 0 || $pm2 != 0 || $args{parallax} != 0 ) ) {
+      my ( $ra0, $dec0 );
+      Astro::SLA::slaPm( $ra, $dec,
+                         Astro::SLA::DAS2R * $pm1,
+                         Astro::SLA::DAS2R * $pm2,
+                         $args{parallax},
+                         0.0, # radial velocity
+                         $epoch,
+                         2000.0,
+                         $ra0,
+                         $dec0 );
+      $ra = $ra0;
+      $dec = $dec0;
+    }
+
+  } elsif ($args{type} =~ /^b([0-9\.]+)/i) {
     return undef unless exists $args{ra} and exists $args{dec};
     return undef unless defined $args{ra} and defined $args{dec};
 
-    # if we have non-zero P.M. or parallax we need to do the complicated
-    # thing
-    if ($pm1 != 0 || $pm2 != 0 || $args{parallax} != 0) {
-      Astro::SLA::slaFk425($args{ra}, $args{dec},
-			   Astro::SLA::DAS2R * $pm1,
-			   Astro::SLA::DAS2R * $pm2,
-			   $args{parallax},
-			   0.0, # Radial Velocity 0 km/s
-			   $ra, $dec, $pm1, $pm2, $args{parallax},
-			   my $vel
-			  );
+    $ra = $args{ra};
+    $dec = $args{dec};
 
-      # convert proper motions back to arcsec/year
-      $args{pm}->[0] = Astro::SLA::DR2AS * $pm1;
-      $args{pm}->[1] = Astro::SLA::DR2AS * $pm2;
+# The equinox is everything after the B.
+    my $equinox = $1;
 
-    } else {
-      # simple approach
-      Astro::SLA::slaFk45z( $args{ra}, $args{dec}, 1950.0, $ra, $dec);
+# Get the epoch. If it's not given (in $args{epoch}) then it's
+# the same as the equinox.
+    my $epoch = ( ( exists( $args{epoch} ) && defined( $args{epoch} ) ) ?
+                  $args{epoch} :
+                  $equinox );
+
+    my ( $ra0, $dec0 );
+
+# For the implementation details, see section 4.1 of SUN/67.
+    if( $pm1 != 0 || $pm2 != 0 || $args{parallax} != 0 ) {
+      Astro::SLA::slaPm( $ra, $dec,
+                         Astro::SLA::DAS2R * $pm1,
+                         Astro::SLA::DAS2R * $pm2,
+                         $args{parallax},
+                         0.0,
+                         $epoch,
+                         2000.0,
+                         $ra0,
+                         $dec0 );
+      $ra = $ra0;
+      $dec = $dec0;
+
+      if( $equinox != 1950 ) {
+
+# Remove the E-terms.
+        my ( $ra0, $dec0 );
+        Astro::SLA::slaSubet( $ra, $dec, $equinox, $ra0, $dec0 );
+        $ra = $ra0;
+        $dec = $dec0;
+
+# Wind the RA/Dec to B1950 if the equinox isn't 1950.
+        Astro::SLA::slaPreces( 'FK4', $equinox, 1950.0, $ra, $dec );
+
+# Add the E-terms back in.
+        Astro::SLA::slaAddet( $ra, $dec, 1950.0, $ra0, $dec0 );
+        $ra = $ra0;
+        $dec = $dec0;
+      }
+
     }
+
+# Convert to J2000, no proper motion
+    Astro::SLA::slaFk45z($ra, $dec,
+                         2000.0,
+                         $ra0, $dec0
+                        );
+    $ra = $ra0;
+    $dec = $dec0;
 
   } elsif ($args{type} eq "GALACTIC") {
     return undef unless exists $args{long} and exists $args{lat};
@@ -223,15 +290,31 @@ sub ra {
 
   my $ra;
   $ra = $self->ra2000();
+
   if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
+
     # We have proper motions
     my $dec = $self->dec2000();
-    print "RA $ra and $dec - $pm[0] and $pm[1] and $par\n";
-    print "Epoch ". Astro::SLA::slaEpj($self->_mjd_tt) . "\n";
-    Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
+
+    Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0],
 		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
 		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
-    print "RA $ra and $dec\n";
+
+# Take care of parallax.
+    if( $par != 0 ) {
+      my ( @w, @eb );
+      Astro::SLA::slaEvp( $self->_mjd_tt, 2000.0,
+                          @w, @eb, @w, @w );
+
+      my @v;
+      Astro::SLA::slaDcs2c( $ra, $dec, @v );
+      for ( 0..2 ) {
+        $v[$_] -= $par * Astro::SLA::DAS2R * $eb[$_];
+      }
+      Astro::SLA::slaDcc2s( @v, $ra, $dec );
+
+      $ra = Astro::SLA::slaDranrm( $ra );
+    }
   }
 
   my %opt = @_;
@@ -273,11 +356,24 @@ sub dec {
   if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
     # We have proper motions
     my $ra = $self->ra2000();
-    print "RA $ra and $dec - $pm[0] and $pm[1] and $par\n";
-    print "Epoch ". Astro::SLA::slaEpj($self->_mjd_tt) . "\n";
+
     Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
 		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
 		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
+
+# Take care of parallax.
+    if( $par != 0 ) {
+      my ( @w, @eb );
+      Astro::SLA::slaEvp( $self->_mjd_tt, 2000.0,
+                          @w, @eb, @w, @w );
+
+      my @v;
+      Astro::SLA::slaDcs2c( $ra, $dec, @v );
+      for ( 0..2 ) {
+        $v[$_] -= $par * Astro::SLA::DAS2R * $eb[$_];
+      }
+      Astro::SLA::slaDcc2s( @v, $ra, $dec );
+    }
   }
 
   my %opt = @_;
