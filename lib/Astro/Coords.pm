@@ -71,11 +71,11 @@ use Carp;
 
 our $VERSION = '0.01';
 
-use Astro::SLA;
+use Astro::SLA ();
 use Astro::Coords::Equatorial;
 use Astro::Coords::Planet;
 
-use Time::Object  0.12; # override gmtime
+use Time::Piece  '1.00'; # override gmtime
 
 =head1 METHODS
 
@@ -191,10 +191,11 @@ sub telescope {
 
 Date/Time object to use when determining the source elevation.
 
-  $c->datetime( new Time::Object() );
+  $c->datetime( new Time::Piece() );
 
-Argument must be of type C<Time::Object>. The method dies if this
-is not the case.
+Argument must be of type C<Time::Piece> (or C<Time::Object> version
+1.00). The method dies if this is not the case [it must support an
+C<mjd> method].
 
 If no argument is specified an object referring to the current time
 (GMT/UT) is returned.
@@ -205,8 +206,8 @@ sub datetime {
   my $self = shift;
   if (@_) {
     my $time = shift;
-    croak "Argument is not of type Time::Object"
-      unless UNIVERSAL::isa($time, "Time::Object");
+    croak "Argument does not have an mjd() method"
+      unless (UNIVERSAL::can($time, "mjd"));
     $self->{DateTime} = $time;
   }
   return (defined $self->{DateTime} ? $self->{DateTime} : gmtime );
@@ -329,7 +330,7 @@ sub pa {
   my $dec = $self->dec_app;
   my $tel = $self->telescope;
   my $lat = ( defined $tel ? $tel->lat : 0.0);
-  return $self->_cvt_fromrad( slaPa($ha, $dec, $lat), $opt{format});
+  return $self->_cvt_fromrad(Astro::SLA::slaPa($ha, $dec, $lat), $opt{format});
 }
 
 =item B<array>
@@ -357,11 +358,12 @@ telescope and return it (in radians).
 If no date/time is specified the current time will be used.
 If no telescope is defined the LST will be from Greenwich.
 
-This is labelled as an internal routine since it is not clear
-whether the method to determine lst should be here or simply
-placed into Time::Object. In practice this simply calls the
-Astro::SLA::ut2lst function with the correct args (and therefore
-does not need the MJD).
+This is labelled as an internal routine since it is not clear whether
+the method to determine LST should be here or simply placed into
+C<Time::Object>. In practice this simply calls the
+C<Astro::SLA::ut2lst> function with the correct args (and therefore
+does not need the MJD). It will need the longitude though so we
+calculate it here.
 
 =cut
 
@@ -393,7 +395,7 @@ sub _azel {
   my $dec = $self->dec_app;
   my $tel = $self->telescope;
   my $lat = ( defined $tel ? $tel->lat : 0.0);
-  slaDe2h( $ha, $dec, $lat, my $az, my $el );
+  Astro::SLA::slaDe2h( $ha, $dec, $lat, my $az, my $el );
   return ($az, $el);
 }
 
