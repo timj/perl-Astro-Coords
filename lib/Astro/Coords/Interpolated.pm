@@ -7,7 +7,12 @@ Astro::Coords::Interpolated - Specify astronomical coordinates using two referen
 
 =head1 SYNOPSIS
 
-  $c = new Astro::Coords::Elements( elements => \%elements );
+  $c = new Astro::Coords::Interpolated( ra1 => '05:22:56',
+					dec1 => '-26:20:44.4',
+					mjd1 => 52440.5,
+					ra2 => '05:23:56',
+					dec2 => '-26:20:50.4',
+					mjd2 => 52441.5,);
 
 =head1 DESCRIPTION
 
@@ -20,7 +25,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use base qw/ Astro::Coords /;
 
@@ -46,7 +51,8 @@ Instantiate a new object using the supplied options.
 				      );
 
 Returns undef on error. The positions are assumed to be apparent
-RA/Dec. Units are optional (see C<Astro::Coords::Equatorial>).
+RA/Dec for the telescope location. Units are optional (see
+C<Astro::Coords::Equatorial>).
 
 =cut
 
@@ -54,20 +60,22 @@ sub new {
   my $proto = shift;
   my $class = ref($proto) || $proto;
 
-  my %opts = @_;
+  my %args = @_;
 
   # Sanity check
   for (qw/ ra1 dec1 mjd1 ra2 dec2 mjd2 /) {
-    return undef unless exists $opts{$_};
+    return undef unless exists $args{$_};
   }
 
-  # Convert input args to radians
-  $opts{ra1} = $class->_cvt_torad($opts{units}, $opts{ra1}, 1);
-  $opts{dec1} = $class->_cvt_torad($opts{units}, $opts{dec1}, 0);
-  $opts{ra2} = $class->_cvt_torad($opts{units}, $opts{ra2}, 1);
-  $opts{dec2} = $class->_cvt_torad($opts{units}, $opts{dec2}, 0);
+  # Convert input args to objects
+  $args{ra1} = new Astro::Coords::Angle::Hour($args{ra1}, units => $args{units},
+					      range => '2PI' );
+  $args{dec1} = new Astro::Coords::Angle($args{dec1}, units => $args{units} );
+  $args{ra2} = new Astro::Coords::Angle::Hour($args{ra2}, units => $args{units},
+					      range => '2PI' );
+  $args{dec2} = new Astro::Coords::Angle($args{dec2}, units => $args{units} );
 
-  bless \%opts, $class;
+  return bless \%args, $class;
 
 }
 
@@ -80,7 +88,7 @@ sub new {
 
 =item B<ra1>
 
-Apparent Right Ascension of first reference position. Defaults to radians.
+Apparent Right Ascension of first reference position.
 
   $ra = $c->ra1( %opts );
 
@@ -92,11 +100,7 @@ as defined in C<Astro::Coords::Equatorial>.
 sub ra1 {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  my $ra = $self->{ra1};
-  # Convert to hours if we are using a string or hour format
-  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
-  my $retval = $self->_cvt_fromrad( $ra, $opt{format});
+  my $retval = $self->{ra1}->in_format( $opt{format} );
 
   # Tidy up array
   shift(@$retval) if ref($retval) eq "ARRAY";
@@ -105,18 +109,19 @@ sub ra1 {
 
 =item B<dec1>
 
-Apparent declination of first reference position. Default
-is to return it in radians.
+Apparent declination of first reference position.
 
   $dec = $c->dec1( format => "sexagesimal" );
+
+Type of returned value is controlled with the same options
+as defined in C<Astro::Coords::Equatorial>.
 
 =cut
 
 sub dec1 {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( $self->{dec1}, $opt{format});
+  return $self->{dec1}->in_format( $opt{format} );
 }
 
 =item B<mjd1>
@@ -144,11 +149,7 @@ as defined in C<Astro::Coords::Equatorial>.
 sub ra2 {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  my $ra = $self->{ra2};
-  # Convert to hours if we are using a string or hour format
-  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
-  my $retval = $self->_cvt_fromrad( $ra, $opt{format});
+  my $retval = $self->{ra2}->in_format( $opt{format} );
 
   # Tidy up array
   shift(@$retval) if ref($retval) eq "ARRAY";
@@ -167,8 +168,7 @@ is to return it in radians.
 sub dec2 {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( $self->{dec2}, $opt{format});
+  return $self->{dec2}->in_format( $opt{format} );
 }
 
 =item B<mjd2>
@@ -204,7 +204,6 @@ into the other coordinate systems.
 
 sub array {
   my $self = shift;
-  my %el = $self->elements;
   return ( $self->type, undef, undef,
 	   undef,undef,undef,undef,undef,undef,undef,undef);
 }
@@ -252,23 +251,20 @@ sub summary {
   return sprintf("%-16s  %-12s  %-13s INTERP",$name,'','');
 }
 
-=item B<_apparent>
+=item B<apparent>
 
-Return the apparent RA and Dec (in radians) for the current
+Return the apparent RA and Dec (as two C<Astro::Coords::Angle> objects) for the current
 coordinates and time.
 
-  ($ra,$dec) = $c->_apparent();
-
-Returns empty list on error.
+  ($ra,$dec) = $c->apparent();
 
 Apparent RA/Dec is obtained by linear interpolation from the reference
 positions. If the requested time lies outside the reference times
 the position will be extrapolated.
 
-
 =cut
 
-sub _apparent {
+sub apparent {
   my $self = shift;
   my $tel = $self->telescope;
   my $long = (defined $tel ? $tel->long : 0.0 );
@@ -277,23 +273,24 @@ sub _apparent {
   my $mjd = $self->datetime->mjd;
   my $mjd1 = $self->mjd1;
   my $mjd2 = $self->mjd2;
-  my $ra1  = $self->ra1;
-  my $ra2  = $self->ra2;
-  my $dec1 = $self->dec1;
-  my $dec2 = $self->dec2;
+  my $ra1  = $self->ra1->radians;
+  my $ra2  = $self->ra2->radians;
+  my $dec1 = $self->dec1->radians;
+  my $dec2 = $self->dec2->radians;
 
-  my ($ra,$dec);
+  my ($ra_app,$dec_app);
   if ($self->mjd1 == $self->mjd2) {
     # special case when times are identical
-    $ra = $self->ra1;
-    $dec = $self->dec1;
+    $ra_app = $self->ra1;
+    $dec_app = $self->dec1;
   } else {
     # else linear interpolation
-    $ra = $ra1  + ( $ra2  - $ra1  ) * ( $mjd - $mjd1 ) / ( $mjd2 - $mjd1 );
-    $dec= $dec1 + ( $dec2 - $dec1 ) * ( $mjd - $mjd1 ) / ( $mjd2 - $mjd1 );
+    $ra_app = $ra1  + ( $ra2  - $ra1  ) * ( $mjd - $mjd1 ) / ( $mjd2 - $mjd1 );
+    $dec_app = $dec1 + ( $dec2 - $dec1 ) * ( $mjd - $mjd1 ) / ( $mjd2 - $mjd1 );
   }
 
-  return($ra, $dec);
+  return (new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle($dec_app, units => 'rad'));
 }
 
 =back
@@ -301,7 +298,7 @@ sub _apparent {
 =head1 NOTES
 
 Usually called via C<Astro::Coords>. This is the coordinate style
-used by SCUBA instead of using orbital elements.
+used by SCUBA for non-sidereal sources instead of using orbital elements.
 
 Apparent RA/Decs suitable for use in this class can be obtained
 from http://ssd.jpl.nasa.gov/.
@@ -316,11 +313,11 @@ Does not use any external SLALIB routines.
 
 =head1 AUTHOR
 
-Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt>
+Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2002 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2004 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 
