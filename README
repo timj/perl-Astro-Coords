@@ -6,6 +6,8 @@ astronomical coordinate systems. It can be used to convert between
 J2000, B1950, Galactic and super Galactic coordinates.  It can
 calculate the azimuth and elevation of a source specified in
 equatorial coordinates, orbital elements or by name (if a planet).
+It can also determine whether the specified coordinates are observable
+for the given telescope.
 
 In addition to Astro::Coords, a class for handling telescope
 parameters (altitude, longitude and latitude) is also provided
@@ -34,7 +36,7 @@ Author
 This module was written by Tim Jenness  <t.jenness@jach.hawaii.edu>
 of the Joint Astronomy Centre.
 
-Copyright (C) 2001 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2002 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 
@@ -42,3 +44,9 @@ Changes
 -------
 
  v0.01 - initial test release to CPAN
+
+ v0.02 - Add Astro::Coords::Calibration and Astro::Coords::Fixed
+
+ v0.03 - Add isObservable method
+         Astro::Telescope now knows telescope limits (although
+         only for JCMT and UKIRT)
