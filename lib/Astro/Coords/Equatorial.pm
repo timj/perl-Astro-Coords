@@ -45,7 +45,7 @@ use warnings;
 use warnings::register;
 use Carp;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use Astro::SLA ();
 use base qw/ Astro::Coords /;
@@ -98,7 +98,7 @@ J2000, epoch = 1950.0 for B1950) unless an explicit epoch is
 specified.  If the epoch is supplied it is assumed to be a Besselian
 epoch for FK4 coordinates and Julian epoch for all others.
 
-Usually called via C<Astro::Coords>.
+Usually called via C<Astro::Coords> as a factor method.
 
 =cut
 
@@ -114,13 +114,13 @@ sub new {
   $args{type} = uc($args{type});
 
   # Convert input args to radians
-  $args{ra} = $class->_cvt_torad($args{units}, $args{ra}, 1)
+  $args{ra} = Astro::Coords::Angle::Hour->to_radians($args{ra}, $args{units} )
     if exists $args{ra};
-  $args{dec} = $class->_cvt_torad($args{units}, $args{dec}, 0)
+  $args{dec} = Astro::Coords::Angle->to_radians($args{dec}, $args{units} )
     if exists $args{dec};
-  $args{long} = $class->_cvt_torad($args{units}, $args{long}, 0)
+  $args{long} = Astro::Coords::Angle->to_radians($args{long}, $args{units} )
     if exists $args{long};
-  $args{lat} = $class->_cvt_torad($args{units}, $args{lat}, 0)
+  $args{lat} = Astro::Coords::Angle->to_radians($args{lat}, $args{units} )
     if exists $args{lat};
 
   # Default values for parallax and proper motions
@@ -145,11 +145,13 @@ sub new {
   my $pm1 = $pm->[0];
   my $pm2 = $pm->[1];
 
-  my ($ra, $dec);
+  my ($ra, $dec, $native);
 
   if ($args{type} =~ /^j([0-9\.]+)/i) {
     return undef unless exists $args{ra} and exists $args{dec};
     return undef unless defined $args{ra} and defined $args{dec};
+
+    $native = 'radec';
 
     $ra = $args{ra};
     $dec = $args{dec};
@@ -190,6 +192,7 @@ sub new {
     return undef unless exists $args{ra} and exists $args{dec};
     return undef unless defined $args{ra} and defined $args{dec};
 
+    $native = 'radec1950';
     $ra = $args{ra};
     $dec = $args{dec};
 
@@ -246,6 +249,7 @@ sub new {
     $dec = $dec0;
 
   } elsif ($args{type} eq "GALACTIC") {
+    $native = 'glonglat';
     return undef unless exists $args{long} and exists $args{lat};
     return undef unless defined $args{long} and defined $args{lat};
 
@@ -255,6 +259,7 @@ sub new {
     return undef unless exists $args{long} and exists $args{lat};
     return undef unless defined $args{long} and defined $args{lat};
 
+    $native = 'sglonglat';
     Astro::SLA::slaSupgal( $args{long}, $args{lat}, my $glong, my $glat);
     Astro::SLA::slaGaleq( $glong, $glat, $ra, $dec);
 
@@ -264,10 +269,14 @@ sub new {
   }
 
   # Now the actual object
-  bless { ra2000 => $ra, dec2000 => $dec, name => $args{name},
-	  pm => $args{pm}, parallax => $args{parallax}
-	}, $class;
+  my $c = bless { ra2000 => new Astro::Coords::Angle::Hour($ra, units => 'rad', range => '2PI'),
+		  dec2000 => new Astro::Coords::Angle($dec, units => 'rad'),
+		  name => $args{name},
+		  pm => $args{pm}, parallax => $args{parallax}
+		}, $class;
 
+  $c->native( $native );
+  return $c;
 
 }
 
@@ -277,6 +286,64 @@ sub new {
 =head2 Accessor Methods
 
 =over 4
+
+=item B<radec>
+
+Retrieve the Right Ascension and Declination (FK5 J2000) for the date stored in the
+C<datetime> method. Defaults to current date if no time is stored
+in the object.
+
+  ($ra, $dec) = $c->radec();
+
+For J2000 coordinates without proper motions or parallax, this will
+return the same values as returned from the C<radec2000> method.
+
+Coordinates are returned as two C<Astro::Coords::Angle> objects.
+
+=cut
+
+sub radec {
+  my $self = shift;
+
+  # If we have proper motions we need to take them into account
+  # Do this using slaPm rather than via the base class since it
+  # must be more efficient than going through apparent
+  my @pm = $self->pm;
+  my $par = $self->parallax;
+
+  # Fix PM array and parallax if none-defined
+  @pm = (0,0) unless @pm;
+  $par = 0 unless defined $par;
+
+  my ($ra,$dec) = $self->radec2000();
+
+  if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
+    # We have proper motions
+    Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
+		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
+		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
+
+    # Take care of parallax.
+    if( $par != 0 ) {
+      my ( @w, @eb );
+      Astro::SLA::slaEvp( $self->_mjd_tt, 2000.0,
+                          @w, @eb, @w, @w );
+
+      my @v;
+      Astro::SLA::slaDcs2c( $ra, $dec, @v );
+      for ( 0..2 ) {
+        $v[$_] -= $par * Astro::SLA::DAS2R * $eb[$_];
+      }
+      Astro::SLA::slaDcc2s( @v, $ra, $dec );
+    }
+    # Convert to Angle objects
+    $ra = new Astro::Coords::Angle::Hour( $ra, units => 'rad', range => '2PI');
+    $dec = new Astro::Coords::Angle( $dec, units => 'rad' );
+  }
+
+  return ($ra, $dec);
+}
+
 
 =item B<ra>
 
@@ -293,57 +360,13 @@ return the same values as returned from the C<ra2000> method.
 
 sub ra {
   my $self = shift;
-
-  # If we have proper motions we need to take them into account
-  # Do this using slaPm rather than via the base class since it
-  # must be more efficient than going through apparent 
-  my @pm = $self->pm;
-  my $par = $self->parallax;
-
-  # Fix PM array and parallax if none-defined
-  @pm = (0,0) unless @pm;
-  $par = 0 unless defined $par;
-
-  my $ra;
-  $ra = $self->ra2000();
-
-  if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
-
-    # We have proper motions
-    my $dec = $self->dec2000();
-
-    Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0],
-		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
-		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
-
-# Take care of parallax.
-    if( $par != 0 ) {
-      my ( @w, @eb );
-      Astro::SLA::slaEvp( $self->_mjd_tt, 2000.0,
-                          @w, @eb, @w, @w );
-
-      my @v;
-      Astro::SLA::slaDcs2c( $ra, $dec, @v );
-      for ( 0..2 ) {
-        $v[$_] -= $par * Astro::SLA::DAS2R * $eb[$_];
-      }
-      Astro::SLA::slaDcc2s( @v, $ra, $dec );
-
-      $ra = Astro::SLA::slaDranrm( $ra );
-    }
-  }
-
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
+  my ($ra, $dec) = $self->radec;
+  my $retval = $ra->in_format( $opt{format} );
 
-  # Convert to hours if we are using a string or hour format
-  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
-  my $retval = $self->_cvt_fromrad( $ra, $opt{format});
-
-  # Tidy up array
+  # Tidy up array to remove sign
   shift(@$retval) if ref($retval) eq "ARRAY";
   return $retval;
-
 }
 
 =item B<dec>
@@ -361,54 +384,39 @@ return the same values as returned from the C<dec2000> method.
 
 sub dec {
   my $self = shift;
-
-  # If we have proper motions we need to take them into account
-  # Do this using slaPm rather than via the base class since it
-  # must be more efficient than going through apparent 
-  my @pm = $self->pm;
-  my $par = $self->parallax;
-
-  # Fix PM array and parallax if none-defined
-  @pm = (0,0) unless @pm;
-  $par = 0 unless defined $par;
-
-  my $dec = $self->dec2000();
-  if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
-    # We have proper motions
-    my $ra = $self->ra2000();
-
-    Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
-		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
-		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
-
-# Take care of parallax.
-    if( $par != 0 ) {
-      my ( @w, @eb );
-      Astro::SLA::slaEvp( $self->_mjd_tt, 2000.0,
-                          @w, @eb, @w, @w );
-
-      my @v;
-      Astro::SLA::slaDcs2c( $ra, $dec, @v );
-      for ( 0..2 ) {
-        $v[$_] -= $par * Astro::SLA::DAS2R * $eb[$_];
-      }
-      Astro::SLA::slaDcc2s( @v, $ra, $dec );
-    }
-  }
-
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( $dec, $opt{format});
+  my ($ra, $dec) = $self->radec;
+  return $dec->in_format( $opt{format} );
+}
 
+=item B<radec2000>
+
+Retrieve the Right Ascension (FK5 J2000, epoch 2000.0). Default
+is to return it as an C<Astro::Coords::Angle::Hour> object.
+
+The coordinates returned by this method are B<not> adjusted for proper
+motion or parallax. Use the C<radec> method if you want J2000, reference epoch.
+This method is only available to the Equatorial class.
+
+  ($ra, $dec) = $c->radec2000;
+
+Results are returned as C<Astro::Coords::Angle> objects.
+
+=cut
+
+sub radec2000 {
+  my $self = shift;
+  return ($self->ra2000, $self->dec2000);
 }
 
 =item B<ra2000>
 
 Retrieve the Right Ascension (FK5 J2000, epoch 2000.0). Default
-is to return it in radians.
+is to return it as an C<Astro::Coords::Angle::Hour> object.
 
 The coordinates returned by this method are B<not> adjusted for proper
 motion or parallax. Use the C<ra> method if you want J2000, reference epoch.
+This method is only available to the Equatorial class.
 
   $ra = $c->ra2000( format => "s" );
 
@@ -418,7 +426,7 @@ The optional hash arguments can have the following keys:
 
 =item format
 
-The required formatting for the declination:
+The required formatting for the right ascension:
 
   radians     - (the default)
   degrees     - decimal
@@ -433,11 +441,8 @@ The required formatting for the declination:
 sub ra2000 {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
   my $ra = $self->{ra2000};
-  # Convert to hours if we are using a string or hour format
-  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
-  my $retval = $self->_cvt_fromrad( $ra, $opt{format});
+  my $retval = $ra->in_format( $opt{format} );
 
   # Tidy up array
   shift(@$retval) if ref($retval) eq "ARRAY";
@@ -452,7 +457,8 @@ is to return it in radians.
   $dec = $c->dec( format => "sexagesimal" );
 
 The coordinates returned by this method are B<not> adjusted for proper
-motion or parallax. Use the C<ra> method if you want J2000, reference epoch.
+motion or parallax. Use the C<dec> method if you want J2000, reference epoch.
+This method is only available to the Equatorial class.
 
 The optional hash arguments can have the following keys:
 
@@ -474,8 +480,8 @@ The required formatting for the declination:
 sub dec2000 {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( $self->{dec2000}, $opt{format});
+  my $dec = $self->{dec2000};
+  return $dec->in_format( $opt{format} );
 }
 
 
@@ -534,6 +540,40 @@ sub pm {
 
 =over 4
 
+=item B<apparent>
+
+Return the apparent RA and Dec as two C<Astro::Coords::Angle> objects for the current
+coordinates and time.
+
+ ($ra_app, $dec_app) = $self->apparent();
+
+=cut
+
+sub apparent {
+  my $self = shift;
+  my $ra = $self->ra2000;
+  my $dec = $self->dec2000;
+  my $mjd = $self->_mjd_tt;
+  my $par = $self->parallax;
+  my @pm = $self->pm;
+
+  @pm = (0,0) unless @pm;
+  $par = 0.0 unless defined $par;
+
+  Astro::SLA::slaMap( $ra, $dec,
+		      Astro::SLA::DAS2R * $pm[0],
+		      Astro::SLA::DAS2R * $pm[1], $par, 0.0, 2000.0, $mjd,
+		      my $ra_app, my $dec_app);
+
+  # Convert from observed to apparent place
+#  Astro::SLA::slaOap("r", $ra_app, $dec_app, $mjd, 0.0, $long, $lat,
+#                     0.0,0.0,0.0,
+#                     0.0,0.0,0.0,0.0,0.0,$ra, $dec);
+
+  return (new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle($dec_app, units => 'rad'));
+}
+
 =item B<array>
 
 Return back 11 element array with first 3 elements being the
@@ -547,106 +587,9 @@ types of coordinates.
 
 sub array {
   my $self = shift;
-  return ( $self->type, $self->ra, $self->dec,
+  return ( $self->type, $self->ra->radians, $self->dec->radians,
 	   undef, undef, undef, undef, undef, undef, undef, undef);
 }
-
-=item B<glong>
-
-Return Galactic longitude. Arguments are similar to those specified
-for "dec".
-
-  $glong = $c->glong( format => "s" );
-
-=cut
-
-sub glong {
-  my $self = shift;
-  my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_glonglat)[0], $opt{format});
-}
-
-=item B<glat>
-
-Return Galactic latitude. Arguments are similar to those specified
-for "dec".
-
-  $glat = $c->glat( format => "s" );
-
-=cut
-
-sub glat {
-  my $self = shift;
-  my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_glonglat)[1], $opt{format});
-}
-
-=item B<sglong>
-
-Return SuperGalactic longitude. Arguments are similar to those specified
-for "dec".
-
-  $sglong = $c->sglong( format => "s" );
-
-=cut
-
-sub sglong {
-  my $self = shift;
-  my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_sglonglat)[0], $opt{format});
-}
-
-=item B<sglat>
-
-Return SuperGalactic latitude. Arguments are similar to those specified
-for "dec".
-
-  $glat = $c->sglat( format => "s" );
-
-=cut
-
-sub sglat {
-  my $self = shift;
-  my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_sglonglat)[1], $opt{format});
-}
-
-=item B<ecllong>
-
-Return Ecliptic longitude. Arguments are similar to those specified
-for "dec".
-
-  $eclong = $c->ecllong( format => "s" );
-
-=cut
-
-sub ecllong {
-  my $self = shift;
-  my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_ecllonglat)[0], $opt{format});
-}
-
-=item B<ecllat>
-
-Return ecliptic latitude. Arguments are similar to those specified
-for "dec".
-
-  $eclat = $c->ecllat( format => "s" );
-
-=cut
-
-sub ecllat {
-  my $self = shift;
-  my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  return $self->_cvt_fromrad( ($self->_ecllonglat)[1], $opt{format});
-}
-
 
 =item B<type>
 
@@ -672,7 +615,8 @@ Returns RA and Dec (J2000) in string format.
 
 sub stringify {
   my $self = shift;
-  return $self->ra(format=>"s") . " " . $self->dec(format =>"s");
+  my ($ra, $dec) = $self->radec;
+  return "$ra $dec";
 }
 
 =item B<summary>
@@ -688,99 +632,11 @@ sub summary {
   my $self = shift;
   my $name = $self->name;
   $name = '' unless defined $name;
-  return sprintf("%-16s  %-12s  %-13s  J2000",$name,
-		 $self->ra(format=>"s"),
-		 $self->dec(format =>"s"));
+  my ($ra, $dec) = $self->radec;
+
+  return sprintf("%-16s  %-12s  %-13s  J2000",$name,$ra, $dec);
 }
 
-
-=back
-
-=head2 Private Methods
-
-=over 4
-
-=item B<_glonglat>
-
-Calculate Galactic longitude and latitude.
-
- ($long, $lat) = $c->_glonglat;
-
-=cut
-
-sub _glonglat {
-  my $self = shift;
-  my $ra = $self->ra;
-  my $dec = $self->dec;
-  # Really need to cache this
-  slaEqgal( $ra, $dec, my $long, my $lat );
-  return ($long, $lat);
-}
-
-=item B<_sglonglat>
-
-Calculate Super Galactic longitude and latitude.
-
- ($slong, $slat) = $c->_sglonglat;
-
-=cut
-
-sub _sglonglat {
-  my $self = shift;
-  my ($glong, $glat) = $self->_glonglat();
-  slaGalsup( $glong, $glat, my $sglong, my $sglat);
-  return ($sglong, $sglat);
-}
-
-=item B<_ecllonglat>
-
-Calculate the ecliptic longitude and latitude for the epoch stored
-in the object.
-
- ($long, $lat) = $c->_ecllonglat();
-
-=cut
-
-sub _ecllonglat {
-  my $self = shift;
-  my $ra = $self->ra;
-  my $dec = $self->dec;
-  # Really need to cache this
-  Astro::SLA::slaEqecl( $ra, $dec, $self->_mjd_tt, my $long, my $lat );
-  return ($long, $lat);
-}
-
-=item B<_apparent>
-
-Return the apparent RA and Dec (in radians) for the current
-coordinates and time.
-
-=cut
-
-sub _apparent {
-  my $self = shift;
-  my $ra = $self->ra2000;
-  my $dec = $self->dec2000;
-  my $mjd = $self->_mjd_tt;
-  my $par = $self->parallax;
-  my @pm = $self->pm;
-
-  @pm = (0,0) unless @pm;
-  $par = 0.0 unless defined $par;
-
-  Astro::SLA::slaMap( $ra, $dec,
-		      Astro::SLA::DAS2R * $pm[0],
-		      Astro::SLA::DAS2R * $pm[1], $par, 0.0, 2000.0, $mjd,
-		      my $ra_app, my $dec_app);
-
-  # Convert from observed to apparent place
-#  Astro::SLA::slaOap("r", $ra_app, $dec_app, $mjd, 0.0, $long, $lat,
-#                     0.0,0.0,0.0,
-#                     0.0,0.0,0.0,0.0,0.0,$ra, $dec);
-
-
-  return ($ra_app, $dec_app);
-}
 
 =back
 
@@ -796,9 +652,12 @@ C<Astro::SLA> is used for all internal astrometric calculations.
 
 Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
+Proper motion, equinox and epoch support added by Brad Cavanagh
+<b.cavanagh@jach.hawaii.edu>
+
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2003 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2004 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 
