@@ -5,7 +5,7 @@ BEGIN { plan tests => 61 }
 
 use Astro::Coords;
 use Astro::Telescope;
-use Time::Piece;
+use Time::Piece ':override';
 
 # Simulataneously test negative zero dec and B1950 to J2000 conversion
 my $c = new Astro::Coords( ra => "15:22:33.3",
@@ -152,6 +152,58 @@ $c->telescope( $ukirt );
 ok( !$c->isObservable );
 
 
+# Some random comparisons with SCUBA headers
+print "# Compare with SCUBA observations\n";
+
+
+$c = new Astro::Coords( planet => 'mars');
+$c->telescope( $tel );
+
+my $time = _gmstrptime("2002-03-21T03:16:36");
+$c->datetime( $time);
+print "#LST " . ($c->_lst * Astro::SLA::DR2H). "\n";
+ok(sprintf("%.1f",$c->az(format => 'd')), '268.5');
+ok(sprintf("%.1f",$c->el(format => 'd')), '60.3');
+
+$c = new Astro::Coords( ra => '04:42:53.60',
+			type => 'J2000',
+			dec => '36:06:53.65',
+			units => 'sexagesimal',
+		      );
+$c->telescope( $tel );
+
+# Time is in UT not localtime
+$time = _gmstrptime("2002-03-21T06:23:36");
+$c->datetime( $time );
+print "#LST " . ($c->_lst * Astro::SLA::DR2H). "\n";
+
+ok(sprintf("%.1f",$c->az(format => 'd')), '301.7');
+ok(sprintf("%.1f",$c->el(format => 'd')), '44.9');
+
+# Comet Hale Bopp
+$c = new Astro::Coords( elements => {
+				     # Original
+				     EPOCH => 50520.5,
+				     ORBINC => 89.4300* Astro::SLA::DD2R,
+				     ANODE =>  282.4707* Astro::SLA::DD2R,
+				     PERIH =>  130.5887* Astro::SLA::DD2R,
+				     AORQ => 0.914142,
+				     E => 0.995068,
+				    });
+$c->telescope( $tel );
+
+# Time is in UT not localtime
+$time = _gmstrptime("1997-10-24T16:58:32");
+#$time = _gmstrptime("1997-10-24T15:00:00");
+
+$c->datetime( $time );
+print "# MJD: " . $c->datetime->mjd ."\n";
+print "# LST " . ($c->_lst * Astro::SLA::DR2H). "\n";
+
+ok(sprintf("%.1f",$c->az(format => 'd')), '187.4');
+ok(sprintf("%.1f",$c->el(format => 'd')), '22.2');
+print "# RA: " . $c->ra_app(format => 's') . "\n";
+print "# Dec: " . $c->dec_app(format => 's') . "\n";
 
 
 exit;
@@ -167,4 +219,13 @@ sub test_array_elem {
     ok($ansref->[$i], $testref->[$i]);
   }
 
+}
+
+sub _gmstrptime {
+  # parse ISO date as UT
+  my $input = shift;
+  my $isoformat = "%Y-%m-%dT%T";
+  my $time = Time::Piece->strptime($input, $isoformat);
+  my $tzoffset = $date->tzoffset;
+  return scalar(gmtime($time->epoch() + $tzoffset));
 }
