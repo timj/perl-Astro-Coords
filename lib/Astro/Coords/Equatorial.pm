@@ -307,7 +307,7 @@ sub ra {
   my $ra;
   $ra = $self->ra2000();
 
-  if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
+  if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
 
     # We have proper motions
     my $dec = $self->dec2000();
@@ -504,7 +504,7 @@ declination).
   @pm = $self->pm();
   $self->pm( $pm1, $pm2);
 
-If the proper motions are not defined, an empty array will be returned.
+If the proper motions are not defined, an empty list will be returned.
 
 =cut
 
