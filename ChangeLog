@@ -1,3 +1,8 @@
+2005-01-05  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords/Equatorial.pm: Can not use vdiff in the radec
+	method since vdiff requires the radec.
+
 2004-12-09  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords.pm: Add preliminary support for radial

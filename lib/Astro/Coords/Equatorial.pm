@@ -57,7 +57,7 @@ our $VERSION = '0.04';
 use Astro::SLA ();
 use base qw/ Astro::Coords /;
 
-use overload '""' => "stringify";
+use overload '""' => "stringify", fallback => 1;
 
 =head1 METHODS
 
@@ -373,12 +373,15 @@ sub radec {
 
   # J2000 Epoch 2000.0
   my ($ra,$dec) = $self->radec2000();
-
   if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
     # We have proper motions
     # Radial velocity in HEL frame
-    my $rv = $self->rv;
-    $rv += $self->vdiff( 'HEL', '' );
+    # Note that we need to calculate the RA/Dec to get the HEL frame
+    # if the radial velocity is not already in HEL
+    # We have to ignore it for now and only use rv if it is 
+    # already heliocentric
+    my $rv = 0;
+    $rv = $self->rv if $self->vframe eq 'HEL';
 
     # Correct for proper motion
     Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
@@ -672,7 +675,7 @@ Returns RA and Dec (J2000) in string format.
 
 sub stringify {
   my $self = shift;
-  my ($ra, $dec) = $self->radec;
+  my ($ra, $dec) = $self->radec();
   return "$ra $dec";
 }
 
