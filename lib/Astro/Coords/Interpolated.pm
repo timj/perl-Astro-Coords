@@ -80,24 +80,43 @@ sub new {
 
 =item B<ra1>
 
-Right Ascension of first reference position.
+Apparent Right Ascension of first reference position. Defaults to radians.
+
+  $ra = $c->ra1( %opts );
+
+Type of returned value is controlled with the same options
+as defined in C<Astro::Coords::Equatorial>.
 
 =cut
 
 sub ra1 {
   my $self = shift;
-  return $self->{ra1};
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  my $ra = $self->{ra1};
+  # Convert to hours if we are using a string or hour format
+  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
+  my $retval = $self->_cvt_fromrad( $ra, $opt{format});
+
+  # Tidy up array
+  shift(@$retval) if ref($retval) eq "ARRAY";
+  return $retval;
 }
 
 =item B<dec1>
 
-Declination of first reference position.
+Apparent declination of first reference position. Default
+is to return it in radians.
+
+  $dec = $c->dec1( format => "sexagesimal" );
 
 =cut
 
 sub dec1 {
   my $self = shift;
-  return $self->{dec1};
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  return $self->_cvt_fromrad( $self->{dec1}, $opt{format});
 }
 
 =item B<mjd1>
@@ -111,26 +130,45 @@ sub mjd1 {
   return $self->{mjd1};
 }
 
-=item B<ra1>
+=item B<ra2>
 
-Right Ascension of second reference position.
+Apparent Right Ascension of second reference position. Defaults to radians.
+
+  $ra = $c->ra2( %opts );
+
+Type of returned value is controlled with the same options
+as defined in C<Astro::Coords::Equatorial>.
 
 =cut
 
 sub ra2 {
   my $self = shift;
-  return $self->{ra2};
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  my $ra = $self->{ra2};
+  # Convert to hours if we are using a string or hour format
+  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
+  my $retval = $self->_cvt_fromrad( $ra, $opt{format});
+
+  # Tidy up array
+  shift(@$retval) if ref($retval) eq "ARRAY";
+  return $retval;
 }
 
-=item B<dec1>
+=item B<dec2>
 
-Declination of second reference position.
+Apparent declination of second reference position. Default
+is to return it in radians.
+
+  $dec = $c->dec2( format => "sexagesimal" );
 
 =cut
 
 sub dec2 {
   my $self = shift;
-  return $self->{dec2};
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  return $self->_cvt_fromrad( $self->{dec2}, $opt{format});
 }
 
 =item B<mjd2>
