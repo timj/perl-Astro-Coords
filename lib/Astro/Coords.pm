@@ -76,8 +76,9 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
+use Math::Trig qw/ acos /;
 use Astro::SLA ();
 use Astro::Coords::Equatorial;
 use Astro::Coords::Elements;
@@ -87,6 +88,14 @@ use Astro::Coords::Fixed;
 use Astro::Coords::Calibration;
 
 use Time::Piece  qw/ :override /, '1.00'; # override gmtime
+
+# Constants for Sun rise/set and twilight definitions
+# Elevation in radians
+# See http://aa.usno.navy.mil/faq/docs/RST_defs.html
+use constant SUN_RISE_SET => ( - (50 * 60) * Astro::SLA::DAS2R); # 50 arcmin
+use constant CIVIL_TWILIGHT => ( - (6 * 3600) * Astro::SLA::DAS2R); # 6 deg
+use constant NAUT_TWILIGHT => ( - (12 * 3600) * Astro::SLA::DAS2R); # 12 deg
+use constant AST_TWILIGHT => ( - (18 * 3600) * Astro::SLA::DAS2R); # 18 deg
 
 =head1 METHODS
 
@@ -269,7 +278,10 @@ Date/Time object to use when determining the source elevation.
 
 Argument must be of type C<Time::Piece> (or C<Time::Object> version
 1.00). The method dies if this is not the case [it must support an
-C<mjd> method].
+C<mjd> method]. A value of C<undef> is supported. This will clear
+the time and force the current time to be used on subsequent calls.
+
+  $c->datetime( undef );
 
 If no argument is specified, or C<usenow> is set to true, an object
 referring to the current time (GMT/UT) is returned. If a new argument
@@ -281,9 +293,11 @@ sub datetime {
   my $self = shift;
   if (@_) {
     my $time = shift;
+
+    # undef is okay
     croak "datetime: Argument does not have an mjd() method [class="
       . ( ref($time) ? ref($time) : $time) ."]"
-      unless (UNIVERSAL::can($time, "mjd"));
+      if (defined $time && !UNIVERSAL::can($time, "mjd"));
     $self->{DateTime} = $time;
     $self->usenow(0);
   }
@@ -292,6 +306,21 @@ sub datetime {
   } else {
     return gmtime;
   }
+}
+
+=item B<has_datetime>
+
+Returns true if a specific time is stored in the object, returns
+false if no time is stored. (The value of C<usenow> is
+ignored).
+
+This is required because C<datetime> always returns a time.
+
+=cut
+
+sub has_datetime {
+  my $self = shift;
+  return (defined $self->{DateTime});
 }
 
 =item B<usenow>
@@ -674,6 +703,13 @@ sub status {
     $string .= "Apparent RA :   " . $self->ra_app(format=>'s')."\n";
     $string .= "Apparent dec:   " . $self->dec_app(format=>'s')."\n";
 
+    # Transit time
+    $string .= "Time of transit:" . $self->meridian_time ."\n";
+    $string .= "Transit El:     " . $self->transit_el(format=>'d')." deg\n";
+    $string .= "Hour Ang. (set):" . $self->ha_set( format => 'hour') ." hrs\n";
+    $string .= "Rise time:      " . $self->rise_time . "\n";
+    $string .= "Set time:       " . $self->set_time . "\n";
+
     # This check was here before we added a RA/Dec to the
     # base class.
     if ($self->can('ra')) {
@@ -781,6 +817,240 @@ sub calculate {
 
 }
 
+=item B<rise_time>
+
+Next time the target will appear above the horizon (starting from the
+time stored in C<datetime>). Returns undef if the target is already
+up. An optional argument can be given (as a hash with key "horizon")
+specifying a different elevation to the horizon (in radians).
+
+  $t = $c->rise_time();
+  $t = $c->rise_time( horizon => $el );
+
+Returns a C<Time::Piece> object.
+
+=cut
+
+sub rise_time {
+  my $self = shift;
+
+  # Calculate the HA required for setting
+  my $ha_set = $self->ha_set( @_, format => 'radians' );
+
+  # and convert to seconds
+  $ha_set *= Astro::SLA::DR2S;
+
+  # Calculate the transit time
+  my $mt = $self->meridian_time;
+
+  my $rise = $mt - $ha_set;
+
+  # If the rise time has already happened return undef
+  if ($rise - $self->datetime > 0) {
+    return $rise;
+  } else {
+    return;
+  }
+
+}
+
+=item B<set_time>
+
+Time at which the target will set below the horizon.  (starting from
+the time stored in C<datetime>). Returns C<undef> if the target is
+already down. An optional argument can be given specifying a different
+elevation to the horizon (in radians).
+
+  $t = $c->set_time();
+  $t = $c->set_time( horizon => $el );
+
+Returns a C<Time::Piece> object.
+
+=cut
+
+sub set_time {
+  my $self = shift;
+
+  # Calculate the HA required for setting
+  my $ha_set = $self->ha_set( @_, format=> 'radians' );
+
+  # and convert to seconds
+  $ha_set *= Astro::SLA::DR2S;
+
+  # Calculate the transit time
+  my $mt = $self->meridian_time;
+
+  my $set = $mt + $ha_set;
+
+#  print "MT: $mt  HA Set: $ha_set and Set time $set\n";
+
+  # If the rise time has already happened return undef
+  if ($set - $self->datetime > 0) {
+    return $set;
+  } else {
+    return;
+  }
+
+}
+
+=item B<ha_set>
+
+Hour angle at which the target will set. Negate this value to obtain
+the rise time. By default assumes the target sets at an elevation of 0
+degrees. An optional hash can be given with key of "horizon"
+specifying a different elevation (in radians).
+
+  $ha = $c->ha_set;
+  $ha = $c->ha_set( horizon => $el );
+
+Returned in radians, unless overridden with the "format" key.
+(See the C<ha> method for alternatives).
+
+  $ha = $c->ha_set( horizon => $el, format => 'h');
+
+There are predefined elevations for events such as 
+Sun rise/set and Twilight (only relevant if your object
+refers to the Sun). See L<"Constants"> for more information.
+
+=cut
+
+sub ha_set {
+  my $self = shift;
+
+  # Get the reference horizon elevation
+  my %opt = @_;
+
+  $opt{horizon} = 0 unless defined $opt{horizon};
+  $opt{format}  = 'radians' unless defined $opt{format};
+
+  # Get the telescope position
+  my $tel = $self->telescope;
+
+  # Get the longitude (in radians)
+  my $lat = (defined $tel ? $tel->lat : 0.0 );
+
+  # Declination
+  my $dec = $self->dec_app;
+
+  # Calculate the hour angle for this elevation
+  # See http://www.faqs.org/faqs/astronomy/faq/part3/section-5.html
+  my $cos_ha0 = ( sin($opt{horizon}) - sin($lat)*sin( $dec ) ) /
+    ( cos($lat) * cos($dec) );
+
+  my $ha0 = acos( $cos_ha0 );
+
+  # If we are the Sun we need to convert this to solar time
+  # time from sidereal time
+  $ha0 *= 365.2422/366.2422
+    unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
+
+
+#  print "HA 0 is $ha0\n";
+#  print "#### in hours: ". ( $ha0 * Astro::SLA::DR2S / 3600)."\n";
+
+  # return the result (converting if necessary)
+  $ha0 = $self->_cvt_tohrs( \$opt{format}, $ha0);
+  return $self->_cvt_fromrad( $ha0, $opt{format});
+}
+
+=item B<meridian_time>
+
+Calculate the meridian time for this target (the time at which
+the source transits).
+
+  MT(UT) = RA - LST(UT=0)
+
+The next transit following the current time is calculated and
+returned as a C<Time::Piece> object.
+
+=cut
+
+sub meridian_time {
+  my $self = shift;
+
+  # Get the current time (do not modify it since we need to put it back)
+  my $time = $self->datetime;
+
+  # Determine whether we have to remember the cache
+  my $havetime = $self->has_datetime;
+
+  # Add on 24 hours to go to the next day (so we can drop
+  # H:M:S)
+  my $next = $time + Time::Seconds::ONE_DAY;
+
+  # Need to clear the HMS part so we have midnight
+  $next = $next - ( $next->hour * Time::Seconds::ONE_HOUR +
+		    $next->min * Time::Seconds::ONE_MINUTE +
+		    $next->sec );
+
+  # Store the new time
+  $self->datetime( $next );
+
+#  print "# Next is $next\n";
+
+  # Now calculate the offset from the RA of the source.
+  # Note that RA should be apparent RA and so the time should
+  # match the actual time stored in the object.
+  my $offset = $self->ra_app - $self->_lst;
+
+  # This is in radians. Need to convert it to seconds
+  my $offset_sec = $offset * Astro::SLA::DR2S;
+
+#  print "# Offset is $offset_sec seconds\n";
+
+  # If we are not the Sun we need to convert this to sidereal
+  # time from solar time
+  $offset_sec *= 365.2422/366.2422
+    unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
+
+  # Generate a new Time::Piece
+  my $mtime = $next + $offset_sec;
+
+  # Reset the clock
+  if ($havetime) {
+    $self->datetime( $time );
+  } else {
+    $self->datetime( undef );
+  }
+
+  # return the time
+  return $mtime;
+}
+
+=item B<transit_el>
+
+Elevation at transit. This is just the elevation at Hour Angle = 0.0.
+(ie at C<meridian_time>).
+
+Format is supported as for the C<el> method.
+
+  $el = $c->transit_el( format => 'deg' );
+
+=cut
+
+sub transit_el {
+  my $self = shift;
+
+  # Get meridian time
+  my $mtime = $self->meridian_time();
+
+  # Cache the current time if required
+  # Note that we can leave $cache as undef if there is no
+  # real time.
+  my $cache;
+  $cache = $self->datetime if $self->has_datetime;
+
+  # set the new time
+  $self->datetime( $mtime );
+
+  # calculate the elevation
+  my $el = $self->el( @_ );
+
+  # fix the time
+  $self->datetime( $cache ) if defined $cache;
+
+  return $el;
+}
 
 =item B<_lst>
 
@@ -1006,6 +1276,26 @@ sub _mjd_tt {
 }
 
 =back
+
+=head1 CONSTANTS
+
+In some cases when calculating events such as sunrise, sunset or
+twilight time it is useful to have predefined constants containing
+the standard elevations. These are available in the C<Astro::Coords>
+namespace as:
+
+  SUN_RISE_SET: Position of Sun for sunrise or sunset (-50 arcminutes)
+  CIVIL_TWILIGHT: Civil twilight (-6 degrees)
+  NAUT_TWILIGHT: Nautical twilight (-12 degrees)
+  AST_TWILIGHT: Astronomical twilight (-18 degrees)
+
+For example:
+
+  $set = $c->set_time( horizon => Astro::Coords::AST_TWILIGHT );
+
+These are usually only relevant for the Sun. Note that refraction
+effects may affect the actual answer and these are simply average
+definitions.
 
 =head1 REQUIREMENTS
 
