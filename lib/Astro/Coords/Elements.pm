@@ -181,15 +181,21 @@ presented in the documentation of the constructor.
 This method returns a standardised set of elements across all
 types of coordinates.
 
-Note that EPOCHPERIH is I<not> returned yet.
+Note that EPOCHPERIH is I<not> returned yet as a separate element.
+If EPOCHPERIH is present it overrides the EPOCH of the elements.
+This is not very accurate but is usually good enough to determine
+whether the target is up.
 
 =cut
 
 sub array {
   my $self = shift;
   my %el = $self->elements;
+  my $epoch = $el{EPOCHPERIH}; # use EPOCHPERIH preferentially
+  $epoch = $el{EPOCH} unless $epoch;
+
   return ( $self->type, undef, undef,
-	   $el{EPOCH}, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
+	   $el{EPOCHPERIH}, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
 	   $el{AORQ}, $el{E}, $el{AORL}, $el{DM});
 }
 
