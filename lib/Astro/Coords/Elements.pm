@@ -133,7 +133,7 @@ sub new {
   my %el = %{ $opts{elements}};
 
   bless { elements => \%el, name => $opts{name} }, $class;
-
+  
 }
 
 
@@ -232,7 +232,8 @@ sub summary {
 =item B<_apparent>
 
 Return the apparent RA and Dec (in radians) for the current
-coordinates and time.
+coordinates and time. Includes perterbation corrections to convert
+the elements to the required epoch.
 
 Returns empty list on error.
 
@@ -256,6 +257,26 @@ sub _apparent {
     $el{AORL} = 0;
   }
 
+  # First have to perturb the elements to the current epoch
+  # if we have a minor planet or comet
+  if (1) {
+  if ( $jform == 2 || $jform == 3) {
+    # for now we do not have enough information for jform=3
+    # so just assume the EPOCH is the same
+    #use Data::Dumper;
+    #print "Before perturbing: ". Dumper(\%el);
+    #print "MJD ref : " . $self->_mjd_tt . " and jform = $jform\n";
+    Astro::SLA::slaPertel($jform,$el{EPOCH},$self->_mjd_tt,
+			  $el{EPOCH},$el{ORBINC},$el{ANODE},
+			  $el{PERIH},$el{AORQ},$el{E},$el{AORL},
+			  $el{EPOCH},$el{ORBINC}, $el{ANODE},
+			  $el{PERIH},$el{AORQ},$el{E},$el{AORL},
+			  my $jstat);
+    #print "After perturbing: " .Dumper(\%el);
+    return () if $jstat != 0;
+  }
+}
+
   # Print out the values
   #print "EPOCH:  $el{EPOCH}\n";
   #print "ORBINC: ". ($el{ORBINC}*Astro::SLA::DR2D) . "\n";
@@ -270,6 +291,12 @@ sub _apparent {
 			my $ra, my $dec, my $dist, my $j);
 
   return () if $j != 0;
+
+  # Convert from observed to apparent place
+  Astro::SLA::slaOap("r", $ra, $dec, $self->_mjd_tt, 0.0, $long, $lat, 
+		     0.0,0.0,0.0,
+		     0.0,0.0,0.0,0.0,0.0,$ra, $dec);
+
   return($ra, $dec);
 }
 

@@ -1,5 +1,7 @@
 2002-08-16  Tim Jenness  <t.jenness@jach.hawaii.edu>
 
+	* lib/Astro/Coords/Elements.pm (_apparent): Add perturbation calculation 
+
 	* lib/Astro/Coords.pm (dec&ra): Add J2000 RA&Dec for all modes.
 
 2002-08-04  Tim Jenness  <t.jenness@jach.hawaii.edu>
