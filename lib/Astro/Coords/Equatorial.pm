@@ -214,24 +214,23 @@ sub new {
                          $dec0 );
       $ra = $ra0;
       $dec = $dec0;
+    }
 
-      if( $equinox != 1950 ) {
+    if( $equinox != 1950 ) {
 
 # Remove the E-terms.
-        my ( $ra0, $dec0 );
-        Astro::SLA::slaSubet( $ra, $dec, $equinox, $ra0, $dec0 );
-        $ra = $ra0;
-        $dec = $dec0;
+      my ( $ra0, $dec0 );
+      Astro::SLA::slaSubet( $ra, $dec, $equinox, $ra0, $dec0 );
+      $ra = $ra0;
+      $dec = $dec0;
 
 # Wind the RA/Dec to B1950 if the equinox isn't 1950.
-        Astro::SLA::slaPreces( 'FK4', $equinox, 1950.0, $ra, $dec );
+      Astro::SLA::slaPreces( 'FK4', $equinox, 1950.0, $ra, $dec );
 
 # Add the E-terms back in.
-        Astro::SLA::slaAddet( $ra, $dec, 1950.0, $ra0, $dec0 );
-        $ra = $ra0;
-        $dec = $dec0;
-      }
-
+      Astro::SLA::slaAddet( $ra, $dec, 1950.0, $ra0, $dec0 );
+      $ra = $ra0;
+      $dec = $dec0;
     }
 
 # Convert to J2000, no proper motion
@@ -612,6 +611,38 @@ sub sglat {
   return $self->_cvt_fromrad( ($self->_sglonglat)[1], $opt{format});
 }
 
+=item B<ecllong>
+
+Return Ecliptic longitude. Arguments are similar to those specified
+for "dec".
+
+  $eclong = $c->ecllong( format => "s" );
+
+=cut
+
+sub ecllong {
+  my $self = shift;
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  return $self->_cvt_fromrad( ($self->_ecllonglat)[0], $opt{format});
+}
+
+=item B<ecllat>
+
+Return ecliptic latitude. Arguments are similar to those specified
+for "dec".
+
+  $eclat = $c->ecllat( format => "s" );
+
+=cut
+
+sub ecllat {
+  my $self = shift;
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  return $self->_cvt_fromrad( ($self->_ecllonglat)[1], $opt{format});
+}
+
 
 =item B<type>
 
@@ -695,6 +726,24 @@ sub _sglonglat {
   my ($glong, $glat) = $self->_glonglat();
   slaGalsup( $glong, $glat, my $sglong, my $sglat);
   return ($sglong, $sglat);
+}
+
+=item B<_ecllonglat>
+
+Calculate the ecliptic longitude and latitude for the epoch stored
+in the object.
+
+ ($long, $lat) = $c->_ecllonglat();
+
+=cut
+
+sub _ecllonglat {
+  my $self = shift;
+  my $ra = $self->ra;
+  my $dec = $self->dec;
+  # Really need to cache this
+  Astro::SLA::slaEqecl( $ra, $dec, $self->_mjd_tt, my $long, my $lat );
+  return ($long, $lat);
 }
 
 =item B<_apparent>

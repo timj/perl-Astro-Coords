@@ -1,3 +1,8 @@
+2004-04-12  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Equatorial.pm (_ecllonglat): Add ecliptic
+	latitude and longitude.
+
 2004-02-27  Brad Cavanagh  <b.cavanagh@jach.hawaii.edu>
 
 	* lib/Astro/Coords/Equatorial.pm: Proper motions and parallax
