@@ -178,10 +178,10 @@ sub new {
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
-                         $parallax,
+                         Astro::SLA::DAS2R * $parallax,
                          0.0, # radial velocity
-                         $epoch,
-                         2000.0,
+                         $epoch, # input epoch
+			 2000.0, # output epoch
                          $ra0,
                          $dec0 );
       $ra = $ra0;
@@ -200,7 +200,7 @@ sub new {
     my $equinox = $1;
 
 # Get the epoch. If it's not given (in $args{epoch}) then it's
-# the same as the equinox.
+# the same as the equinox. Assume supplied epoch is Besselian
     my $epoch = ( ( exists( $args{epoch} ) && defined( $args{epoch} ) ) ?
                   $args{epoch} :
                   $equinox );
@@ -209,13 +209,14 @@ sub new {
 
 # For the implementation details, see section 4.1 of SUN/67.
     if( $pm1 != 0 || $pm2 != 0 || $parallax != 0 ) {
+      # We are converting to J2000 but we need to convert that to Besselian epoch
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
-                         $parallax,
-                         0.0,
+                         Astro::SLA::DAS2R * $parallax,
+                         0.0, # radial velocity
                          $epoch,
-                         2000.0,
+                         Astro::SLA::slaEpco('B','J',2000.0), # Besselian epoch
                          $ra0,
                          $dec0 );
       $ra = $ra0;
@@ -224,7 +225,7 @@ sub new {
 
     if( $equinox != 1950 ) {
 
-# Remove the E-terms.
+# Remove the E-terms for the specified Besselian equinox
       my ( $ra0, $dec0 );
       Astro::SLA::slaSubet( $ra, $dec, $equinox, $ra0, $dec0 );
       $ra = $ra0;
@@ -323,19 +324,6 @@ sub radec {
 		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
 		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
 
-    # Take care of parallax.
-    if( $par != 0 ) {
-      my ( @w, @eb );
-      Astro::SLA::slaEvp( $self->_mjd_tt, 2000.0,
-                          @w, @eb, @w, @w );
-
-      my @v;
-      Astro::SLA::slaDcs2c( $ra, $dec, @v );
-      for ( 0..2 ) {
-        $v[$_] -= $par * Astro::SLA::DAS2R * $eb[$_];
-      }
-      Astro::SLA::slaDcc2s( @v, $ra, $dec );
-    }
     # Convert to Angle objects
     $ra = new Astro::Coords::Angle::Hour( $ra, units => 'rad', range => '2PI');
     $dec = new Astro::Coords::Angle( $dec, units => 'rad' );
