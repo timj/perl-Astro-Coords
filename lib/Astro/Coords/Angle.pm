@@ -110,7 +110,7 @@ sub new {
   # Allow for inheritance
   my $rad = $class->_cvt_torad($input_ang, $args{units});
 
-  croak "Unable to decode supplied angle"
+  croak "Unable to decode supplied angle ('$input_ang')"
     unless defined $rad;
 
   # Create the object
