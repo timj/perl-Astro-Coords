@@ -4,6 +4,7 @@ MANIFEST
 README
 t/basic.t
 t/rev.t
+t/riseset.t
 lib/Astro/Coords.pm
 lib/Astro/Coords/Planet.pm
 lib/Astro/Coords/Equatorial.pm
