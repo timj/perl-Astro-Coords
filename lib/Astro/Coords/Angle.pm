@@ -201,8 +201,8 @@ Delimiter to use between components when stringifying.
 Default is to use the global class value (see the C<DELIM> class method).
 Set to C<undef> to revert to the class setting.
 
-  $ang->str_delim( 4 );
-  $ndp = $ang->str_delim;
+  $ang->str_delim( ":" );
+  $delim = $ang->str_delim;
 
 =cut
 
@@ -539,7 +539,7 @@ whereas 'dm' would result in '12d52m45.4'
 
   Astro::Coords::Angle->DELIM( ':' );
 
-Default is " ". An undefined argument will result in the class reverting
+Default is ":". An undefined argument will result in the class reverting
 to the default state.
 
 =cut
