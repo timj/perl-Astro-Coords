@@ -1,3 +1,9 @@
+2004-12-09  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords.pm: Add preliminary support for radial
+	velocities and velocity frames. Add doppler correction
+	calculation.
+
 2004-12-08  Tim Jenness  <tjenness@cpan.org>
 
 	* t/coco.t: Finish test comparison with coco for simple B1950
