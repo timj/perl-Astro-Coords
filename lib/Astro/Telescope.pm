@@ -14,6 +14,8 @@ Astro::Telescope - class for obtaining telescope information
   $longitude = $tel->long;
   $altitude = $tel->alt;
 
+  %limits = $tel->limits;
+
   @telescopes = Astro::Telescope->telNames();
 
 =head1 DESCRIPTION
@@ -102,7 +104,7 @@ sub name {
 =item B<fullname>
 
 Returns the full name of the telescope. For example, if the abbreviated
-name is "JCMT" this will return "James Clerk Maxwell Telescope".
+name is "JCMT" this will return "JCMT 15 metre".
 
 =cut
 
@@ -158,6 +160,81 @@ sub alt {
   return $self->{Alt};
 }
 
+=item B<limits>
+
+Return the telescope limits.
+
+  %limits = $tel->limits;
+
+The limits are returned as a hash with the following keys:
+
+=over 4
+
+=item type
+
+Specifies the way in which the limits are specified. Effectively the
+telescope mount. Values of "AZEL" (for altaz telescopes) and "HADEC"
+(for equatorial telescopes) are currently supported.
+
+=item el
+
+Elevation limit of the telescope. Value is a hash with keys C<max>
+and C<min>. Units are in radians. Only used if C<type> is C<AZEL>.
+
+=item ha
+
+Hour angle limit of the telescope. Value is a hash with keys C<max>
+and C<min>. Units are in radians. Only used if C<type> is C<HADEC>.
+
+=item dec
+
+Declination limit of the telescope. Value is a hash with keys C<max>
+and C<min>. Units are in radians. Only used if C<type> is C<HADEC>.
+
+=back
+
+Only some telescopes have limits defined (please send patches with new
+limits if you know them). If limits are not available for this
+telescope an empty list is returned.
+
+=cut
+
+sub limits {
+  my $self = shift;
+
+  # Just put them all in a big hash (this could come outside
+  # the method since it does not change)
+  my %limits = (
+		JCMT => {
+			 type => "AZEL",
+			 el => { # 5 to 88 deg
+				max => 88 * Astro::SLA::DD2R,
+				min => 5 * Astro::SLA::DD2R,
+			       },
+			},
+		UKIRT => {
+			  type => "HADEC",
+			  ha => { # +/- 4.5 hours
+				max => 4.5 * Astro::SLA::DH2R,
+				min => -4.5 * Astro::SLA::DH2R,
+				},
+			  dec=> { # -42 to +60 deg
+				max => 60 * Astro::SLA::DD2R,
+				min => -42 * Astro::SLA::DD2R,
+				},
+			 },
+
+	       );
+
+  # Return the hash if it exists
+  if (exists $limits{ $self->name }) {
+    return %{ $limits{ $self->name } };
+  } else {
+    return ();
+  }
+
+}
+
 =back
 
 =head2 Class Methods
@@ -167,6 +244,8 @@ sub alt {
 =item B<telNames>
 
 Obtain a sorted list of all supported telescope names.
+
+  @names = Astro::Telescope->telNames;
 
 =cut
 
