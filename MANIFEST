@@ -3,6 +3,7 @@ ChangeLog
 MANIFEST
 README
 t/basic.t
+t/rev.t
 lib/Astro/Coords.pm
 lib/Astro/Coords/Planet.pm
 lib/Astro/Coords/Equatorial.pm
