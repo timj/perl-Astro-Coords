@@ -20,7 +20,7 @@ use 5.006;
 use strict;
 use warnings;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Astro::SLA ();
 use Astro::Coords::Angle;
@@ -182,31 +182,34 @@ sub diam {
   my $self = shift;
   if (@_) {
     my $d = shift;
-    $self->{diam} = new Astro::Coords::Angle( $d );
+    $self->{diam} = new Astro::Coords::Angle( $d, units => 'rad' );
   }
   return $self->{diam};
 }
 
-=item B<_apparent>
+=item B<apparent>
 
-Return the apparent RA and Dec (in radians) for the current
+Return the apparent RA and Dec as two C<Astro::Coords::Angle> objects for the current
 coordinates and time.
+
+ ($ra_app, $dec_app) = $self->apparent();
 
 =cut
 
-sub _apparent {
+sub apparent {
   my $self = shift;
   my $tel = $self->telescope;
   my $long = (defined $tel ? $tel->long : 0.0 );
   my $lat = (defined $tel ? $tel->lat : 0.0 );
 
   Astro::SLA::slaRdplan($self->_mjd_tt, $PLANET{$self->planet},
-			$long, $lat, my $ra, my $dec, my $diam);
+			$long, $lat, my $ra_app, my $dec_app, my $diam);
 
   # Store the diameter
   $self->diam( $diam );
 
-  return($ra, $dec);
+  return (new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle($dec_app, units => 'rad'));
 }
 
 =item B<_default_horizon>
@@ -271,7 +274,7 @@ C<Astro::SLA> is used for all internal astrometric calculations.
 
 =head1 AUTHOR
 
-Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt>
+Tim Jenness E<lt>t.jenness@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
