@@ -1,3 +1,9 @@
+2005-02-14  Brad Cavanagh <b.cavanagh@jach.hawaii.edu>
+
+  * lib/Astro/Coords/Angle.pm, lib/Astro/Coords/Angle/Hour.pm: Change
+  default delimiter to the colon character to maintain backwards
+  compatibility with v0.05.
+
 2005-02-04  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm (_iterative_el): Fix case when moon almost
