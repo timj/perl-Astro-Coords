@@ -39,7 +39,7 @@ our %PLANET = map { $_, $i++  } @PLANETS;
 
 =head2 Constructor
 
-=over
+=over 4
 
 =item B<new>
 

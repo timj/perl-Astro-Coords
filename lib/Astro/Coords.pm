@@ -21,6 +21,8 @@ Astro::Coords - Class for handling astronomical coordinates
 
   $c = new Astro::Coords( elements => \%elements );
 
+  $c = new Astro::Coords( az => 345, el => 45 );
+
   # Return FK5 J2000 coordinates in radians
   ($ra, $dec) = $c->fk5();
 
@@ -69,11 +71,13 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use Astro::SLA ();
 use Astro::Coords::Equatorial;
 use Astro::Coords::Planet;
+use Astro::Coords::Fixed;
+use Astro::Coords::Calibration;
 
 use Time::Piece  '1.00'; # override gmtime
 
@@ -107,7 +111,7 @@ Orbital elements as:
 where C<%elements> must contain the names of the elements
 as used in the SLALIB routine slaPlante.
 
-Fixed coordinate frames can be specified using:
+Fixed astronomical oordinate frames can be specified using:
 
   $c = new Astro::Coords( ra => 
                           dec =>
@@ -124,6 +128,23 @@ The C<units> can be specified as "sexagesimal" (when using colon or
 space-separated strings), "degrees" or "radians". The default is
 determined from context.
 
+Fixed (as in fixed on Earth) coordinate frames can be specified
+using:
+
+  $c = new Astro::Coords( dec =>
+                          ha =>
+                          tel =>
+                          az =>
+                          el =>
+                          units =>
+                        );
+
+where C<az> and C<el> are the Azimuth and Elevation. Hour Angle
+and Declination require a telescope. Units are as defined above.
+
+Finally, if no arguments are given the object is assumed
+to be of type C<Astro::Coords::Calibration>.
+
 Returns C<undef> if an object could not be created.
 
 =cut
@@ -134,17 +155,25 @@ sub new {
   my %args = @_;
 
   my $obj;
-  if (exists $args{planet}) {
+  if (exists $args{planet} and defined $args{planet}) {
 
     $obj = new Astro::Coords::Planet( $args{planet} );
 
-  } elsif (exists $args{elements}) {
+  } elsif (exists $args{elements} and defined $args{elements}) {
 
     $obj = new Astro::Coords::Elements( $args{planet} );
 
-  } elsif (exists $args{type}) {
+  } elsif (exists $args{type} and defined $args{type}) {
 
     $obj = new Astro::Coords::Equatorial( %args );
+
+  } elsif (exists $args{az} or exists $args{el} or exists $args{ha}) {
+
+    $obj = new Astro::Coords::Fixed( %args );
+
+  } elsif ( scalar keys %args == 0 ) {
+
+    $obj = new Astro::Coords::Calibration();
 
   } else {
     # unable to work out what you are asking for
@@ -475,6 +504,88 @@ sub _cvt_fromrad {
   }
 
   return $in;
+}
+
+=item B<_cvt_torad>
+
+Convert from the supplied units to radians. The following
+units are supported:
+
+ sexagesimal - A string of format either dd:mm:ss or "dd mm ss"
+ degrees     - decimal degrees
+ radians     - radians
+ hours       - decimal hours
+
+If units are not supplied (undef) default is to assume "sexagesimal"
+if the supplied string contains spaces or colons, "degrees" if the
+supplied number is greater than 2*PI (6.28), and "radians" for all
+other values.
+
+  $radians = Astro::Coords::Equatorial->_cvt_torad("sexagesimal",
+                                                   "5:22:63")
+
+An optional final argument can be used to indicate that the supplied
+string is in hours rather than degrees. This is only used when
+units is set to "sexagesimal".
+
+Returns undef on error.
+
+=cut
+
+# probably need to use a hash argument
+
+sub _cvt_torad {
+  my $self = shift;
+  my $units = shift;
+  my $input = shift;
+  my $hms = shift;
+
+  # Clean up the string
+  $input =~ s/^\s+//g;
+  $input =~ s/\s+$//g;
+
+  # guess the units
+  unless (defined $units) {
+
+    # Now if we have a space or : then we have a real string
+    if ($input =~ /(:|\s)/) {
+      $units = "sexagesimal";
+    } elsif ($input > Astro::SLA::D2PI) {
+      $units = "degrees";
+    } else {
+      $units = "radians";
+    }
+
+  }
+
+  # Now process the input - starting with strings
+  my $output;
+  if ($units =~ /^s/) {
+
+    # Need to clean up the string for slalib
+    $input =~ s/:/ /g;
+
+    my $nstrt = 1;
+    Astro::SLA::slaDafin( $input, $nstrt, $output, my $j);
+    $output = undef unless $j == 0;
+
+    # If we were in hours we need to multiply by 15
+    $output *= 15.0 if $hms;
+
+  } elsif ($units =~ /^h/) {
+    # Hours in decimal
+    $output = $input * Astro::SLA::DH2R;
+
+  } elsif ($units =~ /^d/) {
+    # Degrees decimal
+    $output = $input * Astro::SLA::DD2R;
+
+  } else {
+    # Already in radians
+    $output = $input;
+  }
+
+  return $output;
 }
 
 =back

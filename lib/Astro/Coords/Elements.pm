@@ -32,7 +32,7 @@ use overload '""' => "stringify";
 
 =head2 Constructor
 
-=over
+=over 4
 
 =item B<new>
 
