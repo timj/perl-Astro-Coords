@@ -34,10 +34,12 @@ whereas Hour Angle and declination does.
 use 5.006;
 use strict;
 use warnings;
+use Carp;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Astro::SLA ();
+use Astro::Coords::Angle;
 use base qw/ Astro::Coords /;
 
 use overload '""' => "stringify";
@@ -66,7 +68,10 @@ caching (so there is always overhead converting to apparent
 RA and Dec) since there is no cache flushing when the telescope
 is changed.
 
-In principal a name can be associated with this position.
+A telescope is required (in the form of an C<Astro::Telescope> object)
+if the position is specified as HA/Dec.
+
+A name can be associated with this position.
 
 =cut
 
@@ -90,19 +95,29 @@ sub new {
     # HA and Dec
 
     # Convert input args to radians
-    my $ha = $class->_cvt_torad($args{units}, $args{ha}, 1);
-    my $dec = $class->_cvt_torad($args{units}, $args{dec}, 0);
+    my $ha = Astro::Coords::Angle::Hour->to_radians($args{ha},$args{units});
+    my $dec = Astro::Coords::Angle->to_radians($args{dec}, $args{units});
 
     # Convert to "native" format
     my $lat = $args{tel}->lat;
     Astro::SLA::slaDe2h( $ha, $dec, $lat, $az, $el);
 
+    $az = new Astro::Coords::Angle( $az, units => 'rad', range => '2PI');
+    $el = new Astro::Coords::Angle( $el, units => 'rad');
+
+    # native form
+    $c->native( 'hadec' );
+
   } elsif (exists $args{az} and exists $args{el}) {
     # Az and El
 
     # Convert input args to radians
-    $az = $class->_cvt_torad($args{units}, $args{az}, 0);
-    $el = $class->_cvt_torad($args{units}, $args{el}, 0);
+    $az = new Astro::Coords::Angle( $args{az}, units => $args{units},
+				    range => '2PI' );
+    $el = new Astro::Coords::Angle( $args{el}, units => $args{units});
+
+    # native form
+    $c->native( 'azel' );
 
   } else {
     return undef;
@@ -112,7 +127,7 @@ sub new {
   $c->name( $args{name} ) if exists $args{name};
 
   # Store it in the object
-  $c->_azel( $az, $el );
+  $c->azel( $az, $el );
 
   return $c;
 }
@@ -124,24 +139,29 @@ sub new {
 
 =over 4
 
-=item B<_azel>
+=item B<azel>
 
-Return azimuth and elevation (in radians)
+Return azimuth and elevation (as two C<Astro::Coords::Angle> objects);
 
- ($az, $el) = $c->_azel;
+ ($az, $el) = $c->azel;
 
 Can also be used to store the azimuth and elevation
-(in radians).
+(as C<Astro::Coords::Angle> objects)
 
   $c->_azel( $az, $el);
 
 =cut
 
-sub _azel {
+sub azel {
   my $self = shift;
   if (@_) {
-    $self->{Az} = shift;
-    $self->{El} = shift;
+    my ($az, $el) = @_;
+    croak "Azimuth not an Astro::Coords::Angle object"
+      unless UNIVERSAL::isa( $az, "Astro::Coords::Angle");
+    croak "Elevation not an Astro::Coords::Angle object"
+      unless UNIVERSAL::isa( $el, "Astro::Coords::Angle");
+    $self->{Az} = $az;
+    $self->{El} = $el;
   }
   return ($self->{Az}, $self->{El});
 }
@@ -218,8 +238,8 @@ sub array {
 
 =item B<ha>
 
-Get the hour angle for the currently stored LST. Default units are in
-radians.
+Get the hour angle for the currently stored LST. By default
+returns format as for other angular methods.
 
   $ha = $c->ha;
   $ha = $c->ha( format => "deg" );
@@ -229,56 +249,52 @@ radians.
 sub ha {
   my $self = shift;
   my %opt = @_;
-  $opt{format} = "radians" unless defined $opt{format};
-  my $ha = ($self->_hadec)[0];
-  # Convert to hours if we are using a string or hour format
-  $ha = $self->_cvt_tohrs( \$opt{format}, $ha);
-  return $self->_cvt_fromrad( $ha, $opt{format});
+  my $ha = ($self->hadec)[0];
+  return $ha->in_format( $opt{format} );
 }
 
-=item B<_apparent>
+=item B<apparent>
 
-Return the apparent RA and Dec (in radians)
+Return the apparent RA and Dec (as two C<Astro::Coords::Angle> objects)
 for the current time [note that the apparent declination
-is fixed and the apparent RA changes]. The RA is put into
-the standard range.
+is fixed and the apparent RA changes].
 
 If no telescope is present the equator is used.
 
 =cut
 
-sub _apparent {
+sub apparent {
   my $self = shift;
 
-  my ($ha, $dec_app) = $self->_hadec;
-  my $ra_app = $self->_lst - $ha;
-
-  # Wrap back to 2 PI radians
-  $ra_app = Astro::SLA::slaDranrm( $ra_app );
+  my ($ha, $dec_app) = $self->hadec;
+  my $ra_app = $self->_lst - $ha->radians;
+  $ra_app = new Astro::Coords::Angle::Hour( $ra_app, units => 'rad', range => '2PI' );
 
   return( $ra_app, $dec_app);
 }
 
-=item B<_hadec>
+=item B<hadec>
 
-Return the Hour angle and apparent declination (in radians).
+Return the Hour angle and apparent declination (as two C<Astro::Coords::Angle> objects).
 If no telescope is present the equator is used.
 
- ($ha, $dec) = $c->_hadec;
+ ($ha, $dec) = $c->hadec;
 
 =cut
 
-sub _hadec {
+sub hadec {
   my $self = shift;
-  my $az = $self->az;
-  my $el = $self->el;
+  my ($az, $el) = $self->azel;
   my $tel = $self->telescope;
   my $lat = ( defined $tel ? $tel->lat : 0.0);
 
-  # First need to get the hour angle and declination from the Az and El
-  Astro::SLA::slaDh2e($az, $el, $lat, my $ha, my $dec_app);
 
-  return ($ha, $dec_app);
+
+  # First need to get the hour angle and declination from the Az and El
+  Astro::SLA::slaDh2e($az->radians, $el->radians, $lat, my $ha, my $dec_app);
+
+  return (new Astro::Coords::Angle::Hour( $ha, units => 'rad', range => 'PI'),
+	  new Astro::Coords::Angle( $dec_app, units => 'rad'));
 }
 
 =back
@@ -297,7 +313,7 @@ Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2003 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2004 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 
