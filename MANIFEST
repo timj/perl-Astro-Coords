@@ -9,6 +9,7 @@ t/pm.t
 t/riseset.t
 t/calc.t
 t/rv.t
+t/bugs.t
 lib/Astro/Coords.pm
 lib/Astro/Coords/Planet.pm
 lib/Astro/Coords/Equatorial.pm
