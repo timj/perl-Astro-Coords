@@ -10,13 +10,13 @@ my $ang = new Astro::Coords::Angle( '-00:30:2.0456', units => 'sex',
  );
 isa_ok($ang,"Astro::Coords::Angle");
 
-is("$ang", "359d29m57.95s", "default stringification 0 to 2PI");
+is("$ang", "359:29:57.95", "default stringification 0 to 2PI");
 
-$ang->str_delim(":");
-is("$ang", "359:29:57.95", "colon separated stringification 0 to 2PI");
+$ang->str_delim("dms");
+is("$ang", "359d29m57.95s", "DMS stringification 0 to 2PI");
 
 $ang->range( 'PI' );
-is("$ang","-00:30:02.05","Revert to -PI to PI");
+is("$ang","-00d30m02.05s","Revert to -PI to PI");
 
 $ang = new Astro::Coords::Angle( 45, units => 'deg', range => '2PI' );
 
@@ -38,7 +38,7 @@ my $ra = new Astro::Coords::Angle::Hour( '12h13m45.6s', units => 'sex',
 				    range => 'PI'
  );
 
-is("$ra", '-11h46m14.4s', "hour angle -12 to +12");
+is("$ra", '-11:46:14.4', "hour angle -12 to +12");
 isa_ok( $ra, "Astro::Coords::Angle::Hour");
 
 # guess units
