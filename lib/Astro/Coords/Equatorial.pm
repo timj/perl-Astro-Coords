@@ -72,6 +72,7 @@ Instantiate a new object using the supplied options.
                           parallax =>
 			  type =>
 			  units =>
+                          epoch =>
                          );
 
 C<ra> and C<dec> are used for HMSDeg systems (eg type=J2000). Long and
@@ -91,9 +92,11 @@ in a reference to an array:
 
   pm => [ 0.13, 0.45 ],
 
-If parallax and proper motions are given, the ra/dec coordinates
-are assumed to be correct for the specified EQUINOX (Epoch = 2000.0
-for J2000, epoch = 1950.0 for B1950).
+If parallax and proper motions are given, the ra/dec coordinates are
+assumed to be correct for the specified EQUINOX (Epoch = 2000.0 for
+J2000, epoch = 1950.0 for B1950) unless an explicit epoch is
+specified.  If the epoch is supplied it is assumed to be a Besselian
+epoch for FK4 coordinates and Julian epoch for all others.
 
 Usually called via C<Astro::Coords>.
 
@@ -233,9 +236,10 @@ sub new {
       $dec = $dec0;
     }
 
-# Convert to J2000, no proper motion
+# Convert to J2000, no proper motion. We need the epoch at which the
+# coordinate was valid
     Astro::SLA::slaFk45z($ra, $dec,
-                         2000.0,
+			 $epoch,
                          $ra0, $dec0
                         );
     $ra = $ra0;

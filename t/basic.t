@@ -13,8 +13,8 @@ my $c = new Astro::Coords( ra => "15:22:33.3",
 ok($c, "create object");
 print "#J2000: $c\n";
 # Compare with J2000 values
-is( $c->ra(format=>'s'), " 15:25:07.36","compare J2000 RA");
-is( $c->dec(format=>'s'), "-00:23:35.63","compare J2000 Dec");
+is( $c->ra(format=>'s'), " 15:25:07.35","compare J2000 RA");
+is( $c->dec(format=>'s'), "-00:23:35.76","compare J2000 Dec");
 
 # Calculate distance
 my $c2 = new Astro::Coords(ra => "15:22:33.3",
@@ -42,9 +42,10 @@ is( int($c->el(format=>"d")), 67.0, "compare El");
 is( int($c->az(format=>"d")), 208.0, "compare Az" );
 
 # Get the summary
-my @result = ("RADEC",4.03660910356264,-0.00686316080603299,undef,
+my @result = ("RADEC",4.03660853577072,-0.00686380910209873,undef,
 	      undef,undef,undef,undef,undef,undef,undef);
 my @summary = $c->array;
+print "# Compare contents of array() method\n";
 test_array_elem(\@summary,\@result);
 
 # observability
@@ -287,10 +288,10 @@ sub test_array_elem {
   my $testref = shift;  # The answer you should have got
 
   # Compare sizes
-  is($#$ansref, $#$testref);
+  is($#$ansref, $#$testref, "Compare number of elements in array");
 
   for my $i (0..$#$testref) {
-    is($ansref->[$i], $testref->[$i]);
+    is($ansref->[$i], $testref->[$i], "Compare array element $i");
   }
 
 }
