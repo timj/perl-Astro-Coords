@@ -213,6 +213,22 @@ sub stringify {
   return $str;
 }
 
+=item B<summary>
+
+Return a one line summary of the coordinates.
+In the future will accept arguments to control output.
+
+  $summary = $c->summary();
+
+=cut
+
+sub summary {
+  my $self = shift;
+  my $name = $self->name;
+  $name = '' unless defined $name;
+  return sprintf("%-16s  %-12s  %-11s ELEMENTS",$name,'','');
+}
+
 =item B<_apparent>
 
 Return the apparent RA and Dec (in radians) for the current

@@ -146,6 +146,22 @@ sub stringify {
   return uc($self->planet());
 }
 
+=item B<summary>
+
+Return a one line summary of the coordinates.
+In the future will accept arguments to control output.
+
+  $summary = $c->summary();
+
+=cut
+
+sub summary {
+  my $self = shift;
+  my $name = $self->name;
+  $name = '' unless defined $name;
+  return sprintf("%-16s  %-12s  %-13s PLANET",$name,'','');
+}
+
 =item B<_apparent>
 
 Return the apparent RA and Dec (in radians) for the current

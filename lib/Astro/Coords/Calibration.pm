@@ -136,6 +136,22 @@ sub stringify {
   return $self->type;
 }
 
+=item B<summary>
+
+Return a one line summary of the coordinates.
+In the future will accept arguments to control output.
+
+  $summary = $c->summary();
+
+=cut
+
+sub summary {
+  my $self = shift;
+  my $name = $self->name;
+  $name = '' unless defined $name;
+  return sprintf("%-16s  %-12s  %-13s    CAL",$name,'','');
+}
+
 =back
 
 =head1 NOTES
