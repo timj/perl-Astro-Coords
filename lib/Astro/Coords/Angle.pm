@@ -14,6 +14,7 @@ Astro::Coords::Angle - Representation of an angle
   $rad = $ang->radians;
   $deg = $ang->degrees;
   $asec = $ang->arcsec;
+  $amin = $ang->arcmin;
   $string = $ang->string;
 
 =head1 DESCRIPTION
@@ -146,7 +147,8 @@ sub radians {
   return $self->{ANGLE};
 }
 
-# undocumented
+# undocumented since we do not want a public way of changing the
+# angle
 sub _setRadians {
   my $self = shift;
   my $rad = shift;
@@ -227,15 +229,15 @@ or '-' and is required to distinguish '+0' from '-0'.
   @comp = $ang->components;
 
 The number of decimal places in the seconds will not be constrained by the
-setting of C<str_ndp>.
+setting of C<str_ndp>, but is constrained by an optional argument:
+
+  @comp = $ang->components( $ndp );
+
+Default resolution is 5 decimal places.
 
 In scalar context, returns a reference to an array.
 
 =cut
-
-# undocumented internal argument can be used to override
-# the number of decimal places. There is no point asking slalib
-# to generate high precision if we do not require it.
 
 sub components {
   my $self = shift;
@@ -249,12 +251,12 @@ sub components {
   $res = 5 unless defined $res;
   my @dmsf = $self->_r2f( $res );
 
-  # Combine the fraction with the seconds
+  # Combine the fraction with the seconds unless no decimal places
   my $frac = pop(@dmsf);
-  $dmsf[-1] .= sprintf( ".%0$res"."d",$frac);
+  $dmsf[-1] .= sprintf( ".%0$res"."d",$frac) unless $res == 0;
 
-  use Data::Dumper;
-  print Dumper(\@dmsf);
+  #use Data::Dumper;
+  #print Dumper(\@dmsf);
 
   if (wantarray) {
     return @dmsf;
@@ -271,7 +273,8 @@ Return the angle as a string in sexagesimal format (e.g. 12:30:52.4).
   $string = $ang->string();
 
 The form of this string depends on the C<str_delim> and C<str_ndp>
-settings.
+settings and on whether the angular range allows negative values (the
+sign will be dropped if the range is known to be positive).
 
 =cut
 
@@ -283,9 +286,12 @@ sub string {
   my @dms = $self->components( $ndp );
 
   # Play it safe, and split the fractional part into two strings.
-  my ($sec, $frac) = split(/\./,$dms[-1]);
-  $dms[-1] = $sec;
-  push(@dms, $frac);
+  # if ndp > 0
+  if ( $ndp > 0 ) {
+    my ($sec, $frac) = split(/\./,$dms[-1]);
+    $dms[-1] = $sec;
+    push(@dms, $frac);
+  }
 
   # Now build the string.
 
@@ -305,9 +311,14 @@ sub string {
 
   # Build the format
 
+  # fractional part will not require a decimal place
+  # if ndp is 0. If ndp>0 the fraction is formatted
+  my $fracfmt = ( $ndp == 0 ? '' : '.%s' );
+
   # starting with the numeric part. Gal longitude will want %03d and no sign.
   # RA will want no sign and %02d. Dec wants sign with %02d.
-  my @fmts = ( '%02d', '%02d', '%02d.%s'); # frac is already formatted
+
+  my @fmts = ( '%02d', '%02d', '%02d'.$fracfmt);
   my $fmt;
   if (length($delim) == 1) {
     $fmt = join($delim, @fmts );
@@ -398,6 +409,55 @@ sub range {
     }
   }
   return $self->{RANGE};
+}
+
+=item B<in_format>
+
+Simple wrapper method to support the backwards compatibility interface
+in C<Astro::Coords> when requesting an angle by using a string format rather
+than an explicit method.
+
+  $angle = $ang->in_format( 'sexagesimal' );
+
+Supported formats are:
+
+  radians       calls 'radians' method
+  degrees       calls 'degrees' method
+  sexagesimal   calls 'string' method
+  array         calls 'components' method (returns 2 dp resolution)
+  arcsec        calls 'arcsec' method
+  arcmin        calls 'arcmin' method
+
+The format can be abbreviated to the first 3 letters, or 'am' or 'as'
+for arcmin and arcsec respectively. If no format is specified explicitly, the
+object itself will be returned.
+
+=cut
+
+sub in_format {
+  my $self = shift;
+  my $format = shift;
+
+  # No format (including empty string), return the object
+  return $self unless $format;
+  $format = lc($format);
+
+  if ($format =~ /^d/) {
+    return $self->degrees;
+  } elsif ($format =~ /^s/) {
+    return $self->string();
+  } elsif ($format =~ /^r/) {
+    return $self->radians();
+  } elsif ($format =~ /^arcm/ || $format eq 'am') {
+    return $self->arcmin;
+  } elsif ($format =~ /^arcs/ || $format eq 'as') {
+    return $self->arcsec;
+  } elsif ($format =~ /^a/) {
+    return $self->components( 2 );
+  } else {
+    warnings::warnif("Unsupported format '$format'. Returning radians.");
+    return $self->radians;
+  }
 }
 
 =back
@@ -501,6 +561,25 @@ to the default state.
   }
 }
 
+=item B<to_radians>
+
+Low level utility routine to convert an input value in specified format
+to radians. This method uses the same code as the object constructor to parse
+the supplied input argument but does not require the overhead of object
+construction if the result is only to be used transiently.
+
+  $rad = Astro::Coords::Angle->to_radians( $string, $format );
+
+See the constructor documentation for the supported format strings.
+
+=cut
+
+sub to_radians {
+  my $class = shift;
+  # simply delegate to the internal routine. Could use it directly but it feels
+  # better to leave options open for the moment
+  $class->_cvt_torad( @_ );
+}
 
 =back
 
@@ -627,7 +706,7 @@ sub _guess_units {
   # then we have a real string and assume sexagesimal.
   # Use pre-defined character classes
   my $units;
-  if ($input =~ /[:[:space]][:alpha]]]/) {
+  if ($input =~ /[:[:space:][:alpha:]]/) {
     $units = "sexagesimal";
   } elsif ($input > Astro::SLA::D2PI) {
     $units = "degrees";
