@@ -58,7 +58,7 @@ Astro::Coords - Class for handling astronomical coordinates
   $obs = 1 if $c->isObservable;
 
   # Calculate distance to another coordinate (in radians)
-  $distance = $c->distance( $c2 ); # not yet supported
+  $distance = $c->distance( $c2 );
 
 
 =head1 DESCRIPTION
