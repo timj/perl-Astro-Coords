@@ -545,7 +545,7 @@ to the default state.
 =cut
 
 {
-  my $DEFAULT_DELIM = " ";
+  my $DEFAULT_DELIM = ":";
   my $DELIM = $DEFAULT_DELIM;
   sub DELIM {
     my $class = shift;
