@@ -60,6 +60,27 @@ sub hours {
 
 =back
 
+=head2 General Methods
+
+=over 4
+
+=item B<in_format>
+
+As for base class implementation, except that 'hour' (and abbreviation) is a supported
+format. 'sexagesimal' format will result in a stringified form of the object in hours,
+minutes and seconds.
+
+ $hr = $hour->in_format( 'hour' );
+
+=cut
+
+sub in_format {
+  my $self = shift;
+  my $format = lc(shift);
+  return $self->hours() if (defined $format && $format =~ /^h/);
+  return $self->SUPER::in_format( $format );
+}
+
 =head2 Class Methods
 
 The following methods control the default behaviour of the class.
