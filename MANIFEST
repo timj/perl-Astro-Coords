@@ -2,9 +2,7 @@ Makefile.PL
 MANIFEST
 README
 t/basic.t
-t/tel.t
 lib/Astro/Coords.pm
-lib/Astro/Telescope.pm
 lib/Astro/Coords/Planet.pm
 lib/Astro/Coords/Equatorial.pm
 lib/Astro/Coords/Elements.pm
