@@ -707,8 +707,11 @@ sub status {
     $string .= "Time of transit:" . $self->meridian_time ."\n";
     $string .= "Transit El:     " . $self->transit_el(format=>'d')." deg\n";
     $string .= "Hour Ang. (set):" . $self->ha_set( format => 'hour') ." hrs\n";
-    $string .= "Rise time:      " . $self->rise_time . "\n";
-    $string .= "Set time:       " . $self->set_time . "\n";
+
+    my $t = $self->rise_time;
+    $string .= "Rise time:      " . $t . "\n" if defined $t;
+    $t = $self->set_time;
+    $string .= "Set time:       " . $t . "\n" if defined $t;
 
     # This check was here before we added a RA/Dec to the
     # base class.
@@ -1046,8 +1049,9 @@ sub transit_el {
   # calculate the elevation
   my $el = $self->el( @_ );
 
-  # fix the time
-  $self->datetime( $cache ) if defined $cache;
+  # fix the time back to what it was (including an undef value
+  # if we did not read the cache).
+  $self->datetime( $cache );
 
   return $el;
 }
