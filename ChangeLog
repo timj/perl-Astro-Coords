@@ -1,5 +1,8 @@
 2004-12-08  Tim Jenness  <tjenness@cpan.org>
 
+	* t/coco.t: Finish test comparison with coco for simple B1950
+	coordinate	
+
 	* lib/Astro/Coords.pm (native): Add native() method to keep track
 	of original form.
 
