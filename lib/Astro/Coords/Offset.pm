@@ -82,10 +82,13 @@ sub new {
   # Create the object
   my $off = bless {
 		   OFFSETS => [ $dc1, $dc2 ],
-		   PROJECTION => $proj,
-		   SYSTEM       => $system,
+		   PROJECTION => undef,
+		   SYSTEM       => undef,
 		  }, $class;
 
+  # Use accessor to set so that we get validation
+  $off->projection( $proj );
+  $off->system( $system );
 
   return $off;
 }
