@@ -901,6 +901,72 @@ sub rise_time {
   # Calculate rise time by subtracting the hour angle
   my $rise = $mt - $ha_set;
 
+  # For non-sidereal sources we need to use this as a starting
+  # point for iteration
+  # Get the current time (do not modify it since we need to put it back)
+  my $reftime = $self->datetime;
+
+  # Determine whether we have to remember the cache
+  my $havetime = $self->has_datetime;
+
+  # Store the rise time
+  $self->datetime( $rise );
+
+  # Requested elevation
+  my $refel = ( exists $opts{horizon} ? $opts{horizon} : 0);
+
+  # Calculate current elevation
+  my $el = $self->el;
+
+  # Tolerance (1 minute of arc)
+  my $tol = ( 1 / 60 ) * Astro::SLA::DD2R;
+
+  if (abs($el - $refel) > $tol ) {
+    print "================================".$self->name."\n";
+    print "Requested elevation: " . (Astro::SLA::DR2D * $refel) ."\n";
+    print "Elevation out of range: ". $self->el(format => 'deg')."\n";
+    print "For rise time: $rise\n";
+
+    my $inc = 60; # seconds
+    my $sign = ($el < $refel ? 1 : -1); # incrementing or decremeing time
+    while (abs($el-$refel) > $tol) {
+      if ($el > $refel) {
+	# Need to go backwards in time
+	if ($sign != -1) {
+	  # we have gone too far. Decrease increment
+	  $inc /= 2;
+	}
+	$sign = -1;
+      } else {
+	# need to go forward in time
+	if ($sign != 1) {
+	  # we have gone too far. Decrease increment
+	  $inc /= 2;
+	}
+	$sign = 1;
+      }
+      my $delta = $sign * $inc;
+      if ($rise->isa("Time::Piece")) {
+	$rise = $rise + $delta;
+      } else {
+	$rise->add( new DateTime::Duration( seconds => $delta ));
+      }
+      $self->datetime( $rise );
+      $el = $self->el;
+      print "New elevation: ". $self->el(format=>'deg')."\n";
+      print "New time: $rise\n";
+    }
+
+  }
+
+
+  # Reset the clock
+  if ($havetime) {
+    $self->datetime( $reftime );
+  } else {
+    $self->datetime( undef );
+  }
+
   # If the rise time has already happened return undef
   # unless we are allowing earlier times
   if (!$opts{nearest}) {
