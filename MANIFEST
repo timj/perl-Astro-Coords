@@ -16,3 +16,5 @@ lib/Astro/Coords/Fixed.pm
 lib/Astro/Coords/Calibration.pm
 lib/Astro/Coords/Interpolated.pm
 lib/Astro/Coords/Offset.pm
+lib/Astro/Coords/Angle.pm
+lib/Astro/Coords/Angle/Hour.pm
