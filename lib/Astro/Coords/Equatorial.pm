@@ -27,6 +27,10 @@ Astro::Coords::Equatorial - Manipulate equatorial coordinates
 This class is used by C<Astro::Coords> for handling coordinates
 specified in a fixed astronomical coordinate frame.
 
+You are not expected to use this class directly, the C<Astro::Coords>
+class should be used for all access (the C<Astro::Coords> constructor 
+is treated as a factory constructor).
+
 If proper motions and parallax information are supplied with a
 coordinate it is assumed that the RA/Dec supplied is correct
 for the relevant equinox (ie EPOCH = EQUINOX). It is currently
@@ -197,15 +201,100 @@ sub new {
 
 =item B<ra>
 
-Retrieve the Right Ascension (FK5 J2000). Default
+Retrieve the Right Ascension (FK5 J2000) for the date stored in the
+C<datetime> method. Defaults to current date if no time is stored
+in the object.
+
+  $ra = $c->ra( format => 's' );
+
+For J2000 coordinates without proper motions or parallax, this will
+return the same values as returned from the C<ra2000> method.
+
+=cut
+
+sub ra {
+  my $self = shift;
+
+  # If we have proper motions we need to take them into account
+  # Do this using slaPm rather than via the base class since it
+  # must be more efficient than going through apparent 
+  my @pm = $self->pm;
+  my $par = $self->parallax;
+
+  my $ra;
+  $ra = $self->ra2000();
+  if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
+    # We have proper motions
+    my $dec = $self->dec2000();
+    print "RA $ra and $dec - $pm[0] and $pm[1] and $par\n";
+    print "Epoch ". Astro::SLA::slaEpj($self->_mjd_tt) . "\n";
+    Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
+		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
+		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
+    print "RA $ra and $dec\n";
+  }
+
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+
+  # Convert to hours if we are using a string or hour format
+  $ra = $self->_cvt_tohrs( \$opt{format}, $ra);
+  my $retval = $self->_cvt_fromrad( $ra, $opt{format});
+
+  # Tidy up array
+  shift(@$retval) if ref($retval) eq "ARRAY";
+  return $retval;
+
+}
+
+=item B<dec>
+
+Retrieve the Declination (FK5 J2000) for the date stored in the
+C<datetime> method. Defaults to current date if no time is stored
+in the object.
+
+  $dec = $c->dec( format => 's' );
+
+For J2000 coordinates without proper motions or parallax, this will
+return the same values as returned from the C<dec2000> method.
+
+=cut
+
+sub dec {
+  my $self = shift;
+
+  # If we have proper motions we need to take them into account
+  # Do this using slaPm rather than via the base class since it
+  # must be more efficient than going through apparent 
+  my @pm = $self->pm;
+  my $par = $self->parallax;
+
+  my $dec = $self->dec2000();
+  if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
+    # We have proper motions
+    my $ra = $self->ra2000();
+    print "RA $ra and $dec - $pm[0] and $pm[1] and $par\n";
+    print "Epoch ". Astro::SLA::slaEpj($self->_mjd_tt) . "\n";
+    Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
+		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
+		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
+  }
+
+  my %opt = @_;
+  $opt{format} = "radians" unless defined $opt{format};
+  return $self->_cvt_fromrad( $dec, $opt{format});
+
+}
+
+=item B<ra2000>
+
+Retrieve the Right Ascension (FK5 J2000, epoch 2000.0). Default
 is to return it in radians.
 
 The coordinates returned by this method are B<not> adjusted for proper
-motion or parallax. This may be a bug. [The problem is that the
-apprent RA/Dec method calls this method and this method would have to
-call the apparent RA/Dec method to calculate the new coordinate -
-there needs to be a way of getting the raw R.A. as well as the
-corrected R.A.
+motion or parallax. Use the C<ra> method if you want J2000, reference epoch.
+
+  $ra = $c->ra2000( format => "s" );
 
 The optional hash arguments can have the following keys:
 
@@ -225,7 +314,7 @@ The required formatting for the declination:
 
 =cut
 
-sub ra {
+sub ra2000 {
   my $self = shift;
   my %opt = @_;
   $opt{format} = "radians" unless defined $opt{format};
@@ -239,12 +328,15 @@ sub ra {
   return $retval;
 }
 
-=item B<dec>
+=item B<dec2000>
 
-Retrieve the declination (FK5 J2000). Default
+Retrieve the declination (FK5 J2000, epoch 2000.0). Default
 is to return it in radians.
 
   $dec = $c->dec( format => "sexagesimal" );
+
+The coordinates returned by this method are B<not> adjusted for proper
+motion or parallax. Use the C<ra> method if you want J2000, reference epoch.
 
 The optional hash arguments can have the following keys:
 
@@ -263,7 +355,7 @@ The required formatting for the declination:
 
 =cut
 
-sub dec {
+sub dec2000 {
   my $self = shift;
   my %opt = @_;
   $opt{format} = "radians" unless defined $opt{format};
@@ -498,8 +590,8 @@ coordinates and time.
 
 sub _apparent {
   my $self = shift;
-  my $ra = $self->ra;
-  my $dec = $self->dec;
+  my $ra = $self->ra2000;
+  my $dec = $self->dec2000;
   my $mjd = $self->_mjd_tt;
   my $par = $self->parallax;
   my @pm = $self->pm;

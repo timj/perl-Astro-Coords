@@ -24,28 +24,30 @@ Astro::Coords - Class for handling astronomical coordinates
 
   $c = new Astro::Coords( az => 345, el => 45 );
 
-  # Return FK5 J2000 coordinates in radians
-  ($ra, $dec) = $c->fk5();
+  # Associate with an observer location
+  $c->telescope( new Astro::Telescope( 'JCMT' ));
 
-  # in degrees or as sexagesimal string or arrays
-  ($ra, $dec) = $c->fk5( "DEG" );
-  ($ra, $dec) = $c->fk5( "STRING" );
-  ($raref, $decref) = $c->fk5( "ARRAY" );
+  # ...and a reference epoch for all calculations
+  $date = Time::Piece->strptime($string, $format);
+  $c->datetime( $date );
 
-  # in galactic coordinates
-  ($long, $lat) = $c->gal;
+  # Return coordinates J2000, for the epoch stored in the datetime
+  # object. This will work for all variants.
+  $ra = $c->ra();
+  $dec = $c->dec();
 
-  # Specify a telescope
-  $c->telescope( 'JCMT' );
+  # Return coordinates J2000, epoch 2000.0
+  $ra = $c->ra2000();
+  $dec = $c->dec2000();
 
-  # Determine apparent RA/Dec for the current time and telescope
-  ($appra, $appdec) = $c->apparent;
+  # Return coordinats apparent, reference epoch, from location
+  # In sexagesimal format.
+  $ra_app = $c->ra_app( format => 's');
+  $dec_app = $c->dec_app( format => 's' );
 
-  # and az el
-  ($az, $el) = $c->azel;
-
-  # and ha, dec
-  ($ha, $dec) = $c->hadec;
+  # Azimuth and elevation for reference epoch from observer location
+  my $az = $c->az;
+  my $el = $c->el;
 
   # obtain summary string of object
   $summary = "$c";
@@ -60,11 +62,19 @@ Astro::Coords - Class for handling astronomical coordinates
   # Calculate distance to another coordinate (in radians)
   $distance = $c->distance( $c2 );
 
+  # Calculate the set time of the source
+  $t = $c->set_time;
+
 
 =head1 DESCRIPTION
 
 Class for manipulating and transforming astronomical coordinates.
-All fixed sky coordinates are converted to FK5 J2000 internally.
+Can handle the following coordinate types:
+
+  + Equatorial RA/Dec, galactic (including proper motions and parallax)
+  + Planets
+  + Comets/Asteroids
+  + Fixed locations in azimuth and elevations
 
 For time dependent calculations a telescope location and reference
 time must be provided.
@@ -77,7 +87,7 @@ use warnings;
 use warnings::register;
 use Carp;
 
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 use Math::Trig qw/ acos /;
 use Astro::SLA ();

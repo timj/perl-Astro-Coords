@@ -1,3 +1,9 @@
+2004-02-24  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords/Equatorial.pm: Add ra2000 and dec2000
+	methods. ra() and dec() method now documented to return ra/dec for
+	reference epoch.
+
 2004-01-31  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords/Equatorial.pm: First attempt at parallax and
