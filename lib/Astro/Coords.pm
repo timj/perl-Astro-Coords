@@ -727,15 +727,15 @@ sub status {
     $string .= "Apparent dec:   " . $self->dec_app(format=>'s')."\n";
 
     # Transit time
-    $string .= "Time of next transit:" . $self->meridian_time ."\n";
+    $string .= "Time of next transit:" . $self->meridian_time->datetime ."\n";
     $string .= "Transit El:     " . $self->transit_el(format=>'d')." deg\n";
     my $ha_set = $self->ha_set( format => 'hour');
     $string .= "Hour Ang. (set):" . (defined $ha_set ? $ha_set : '??')." hrs\n";
 
     my $t = $self->rise_time;
-    $string .= "Next Rise time:      " . $t . "\n" if defined $t;
+    $string .= "Next Rise time:      " . $t->datetime . "\n" if defined $t;
     $t = $self->set_time;
-    $string .= "Next Set time:       " . $t . "\n" if defined $t;
+    $string .= "Next Set time:       " . $t->datetime . "\n" if defined $t;
 
     # This check was here before we added a RA/Dec to the
     # base class.
@@ -756,7 +756,7 @@ sub status {
     }
   }
 
-  $string .= "For time ". $self->datetime ."\n";
+  $string .= "For time ". $self->datetime->datetime ."\n";
   my $fmt = 's';
   $string .= "LST: ". $self->_cvt_fromrad($self->_cvt_tohrs(\$fmt,$self->_lst),$fmt) ."\n";
 
@@ -871,9 +871,14 @@ with key "horizon") specifying a different elevation to the horizon
   $t = $c->rise_time();
   $t = $c->rise_time( horizon => $el );
 
-  $t = $c->rise_time( nearest => 1 );
+  $t = $c->rise_time( nearest => (1 * Astro::SLA::DD2R) );
 
-Returns a C<Time::Piece> object.
+An iterative algorithm is used to ensure that the time returned
+by this routine does correspond to the elevation requested for the horizon.
+This is required for non-sidereal objects, especially the Sun and Moon.
+
+Returns a C<Time::Piece> object or a C<DateTime> object depending on the
+type of object that is returned by the C<datetime> method.
 
 BUG: Does not distinguish a source that never rises from a source
 that never sets.
@@ -894,15 +899,17 @@ sub rise_time {
   # Calculate the transit time
   my $mt = $self->meridian_time( nearest => $opts{nearest} );
 
-  if (blessed($mt) eq 'DateTime') {
+  my $use_dt;
+  if ($self->_isdt($mt) ) {
     $ha_set = new DateTime::Duration( seconds => $ha_set );
   }
 
   # Calculate rise time by subtracting the hour angle
-  my $rise = $mt - $ha_set;
-
+  # This is an estimate for non sidereal sources
   # For non-sidereal sources we need to use this as a starting
   # point for iteration
+  my $rise = $mt - $ha_set;
+
   # Get the current time (do not modify it since we need to put it back)
   my $reftime = $self->datetime;
 
@@ -913,52 +920,12 @@ sub rise_time {
   $self->datetime( $rise );
 
   # Requested elevation
-  my $refel = ( exists $opts{horizon} ? $opts{horizon} : 0);
+  my $refel = (defined $opts{horizon} ? $opts{horizon} :
+		 $self->_default_horizon );
 
-  # Calculate current elevation
-  my $el = $self->el;
-
-  # Tolerance (1 minute of arc)
-  my $tol = ( 1 / 60 ) * Astro::SLA::DD2R;
-
-  if (abs($el - $refel) > $tol ) {
-    print "================================".$self->name."\n";
-    print "Requested elevation: " . (Astro::SLA::DR2D * $refel) ."\n";
-    print "Elevation out of range: ". $self->el(format => 'deg')."\n";
-    print "For rise time: $rise\n";
-
-    my $inc = 60; # seconds
-    my $sign = ($el < $refel ? 1 : -1); # incrementing or decremeing time
-    while (abs($el-$refel) > $tol) {
-      if ($el > $refel) {
-	# Need to go backwards in time
-	if ($sign != -1) {
-	  # we have gone too far. Decrease increment
-	  $inc /= 2;
-	}
-	$sign = -1;
-      } else {
-	# need to go forward in time
-	if ($sign != 1) {
-	  # we have gone too far. Decrease increment
-	  $inc /= 2;
-	}
-	$sign = 1;
-      }
-      my $delta = $sign * $inc;
-      if ($rise->isa("Time::Piece")) {
-	$rise = $rise + $delta;
-      } else {
-	$rise->add( new DateTime::Duration( seconds => $delta ));
-      }
-      $self->datetime( $rise );
-      $el = $self->el;
-      print "New elevation: ". $self->el(format=>'deg')."\n";
-      print "New time: $rise\n";
-    }
-
-  }
-
+  # Verify convergence
+  $self->_iterative_el( $refel, 1 );
+  $rise = $self->datetime;
 
   # Reset the clock
   if ($havetime) {
@@ -990,41 +957,75 @@ always return the next set time since that always follows a transit.
   $t = $c->set_time();
   $t = $c->set_time( horizon => $el );
 
-Returns a C<Time::Piece> object.
+Returns a C<Time::Piece> object or a C<DateTime> object depending on the
+type of object that is returned by the C<datetime> method.
+
+Note that whilst the set time returned by this method will always be in the future
+the calculation can be performed twice. This is because the set time is first
+calculated relative to the nearest meridian time (which may be in the past)
+and, if that set time is in the past, it is recalculated for the next transit
+(which is guaranteed to result in a set time in the future).
+
 
 BUG: Does not distinguish a source that never rises from a source
 that never sets.
-
-BUG: Since C<meridian_time> returns the next transit, and this method
-uses that meridian time, it is possible that you will be returned the
-set time after next.
 
 =cut
 
 sub set_time {
   my $self = shift;
+  my %opts = @_;
 
   # Calculate the HA required for setting
-  my $ha_set = $self->ha_set( @_, format=> 'radians' );
+  my $ha_set = $self->ha_set( %opts, format=> 'radians' );
   return if ! defined $ha_set;
 
   # and convert to seconds
   $ha_set *= Astro::SLA::DR2S;
 
   # and thence to a duration if required
-  if ($self->datetime->isa('DateTime')) {
+  if ($self->_isdt()) {
     $ha_set = new DateTime::Duration( seconds => $ha_set );
   }
 
+  # Get the current time (do not modify it since we need to put it back)
+  my $reftime = $self->datetime;
+
+  # Determine whether we have to remember the cache
+  my $havetime = $self->has_datetime;
+
+  # Need the requested horizon
+  my $refel = (defined $opts{horizon} ? $opts{horizon} :
+		 $self->_default_horizon );
 
   my $set;
   # Calculate first for nearest meridian and then for
   # next meridian. We want the set time to be in our future.
+  # $n indicates whether we are requesting the nearest meridian
+  # time or simply the one in the future.
   for my $n (1, 0) {
     # Calculate the transit time
     my $mt = $self->meridian_time( nearest => $n );
 
     $set = $mt + $ha_set;
+
+    # Now verify the calculated set time corresponds to the requested
+    # elevation using an iterative approach.
+    # Do not bother if the estimated time is more than an hour in the past
+    # since the approximation should be more accurate than that
+    if ( $reftime->epoch - $set->epoch < 3600 ) {
+      $self->datetime( $set );
+      $self->_iterative_el( $refel, -1 );
+      $set = $self->datetime;
+
+      # and restore the reference date
+      # Reset the clock
+      if ($havetime) {
+	$self->datetime( $reftime );
+      } else {
+	$self->datetime( undef );
+      }
+    }
 
     # If the set time is in the future we jump out of the loop
     # since everything is okay
@@ -1062,16 +1063,28 @@ refers to the Sun). See L<"Constants"> for more information.
 Returns C<undef> if the target never reaches the specified horizon.
 (maybe it is circumpolar).
 
+For the Sun and moon this calculation will not be very accurate since
+it depends on the time for which the calculation is to be performed
+(the time is not used by this routine) and the rise Hour Angle and
+setting Hour Angle will differ (especially for the moon) . These
+effects are corrected for by the C<rise_time> and C<set_time>
+methods.
+
+In some cases for the Moon, an iterative technique is used to calculate
+the hour angle when the Moon is near transit (the simple geometrical
+arguments do not correctly calculate the transit elevation).
+
 =cut
 
 sub ha_set {
   my $self = shift;
 
   # Get the reference horizon elevation
-  my %opt = @_;
+  my %opts = @_;
 
-  $opt{horizon} = 0 unless defined $opt{horizon};
-  $opt{format}  = 'radians' unless defined $opt{format};
+  my $horizon = (defined $opts{horizon} ? $opts{horizon} :
+		 $self->_default_horizon );
+  $opts{format}  = 'radians' unless defined $opts{format};
 
   # Get the telescope position
   my $tel = $self->telescope;
@@ -1084,10 +1097,29 @@ sub ha_set {
 
   # Calculate the hour angle for this elevation
   # See http://www.faqs.org/faqs/astronomy/faq/part3/section-5.html
-  my $cos_ha0 = ( sin($opt{horizon}) - sin($lat)*sin( $dec ) ) /
+  my $cos_ha0 = ( sin($horizon) - sin($lat)*sin( $dec ) ) /
     ( cos($lat) * cos($dec) );
 
   # Make sure we have a valid number for the cosine
+  if (lc($self->name) eq 'moon' && abs($cos_ha0) > 1) {
+    # for the moon this routine can incorrectly determine
+    # cos HA near transit [in fact it always will be inaccurate
+    # but near transit it won't return any value at all]
+    # Calculate tranist elevation and if it is grater than the
+    # requested "horizon" use an iterative technique to find the
+    # set time.
+    if ($self->transit_el > $horizon) {
+      my $reftime = $self->datetime;
+      my $havedt = $self->has_datetime;
+      my $mt = $self->meridian_time();
+      $self->datetime( $mt );
+      $self->_iterative_el( $horizon, -1 );
+      my $seconds = $self->datetime->epoch - $mt->epoch;
+      $cos_ha0 = cos( $seconds * Astro::SLA::DS2R );
+      $self->datetime( ($havedt ? $reftime : undef ) );
+    }
+  }
+
   return undef if abs($cos_ha0) > 1;
 
   # Work out the hour angle for this elevation
@@ -1103,8 +1135,8 @@ sub ha_set {
 #  print "#### in hours: ". ( $ha0 * Astro::SLA::DR2S / 3600)."\n";
 
   # return the result (converting if necessary)
-  $ha0 = $self->_cvt_tohrs( \$opt{format}, $ha0);
-  return $self->_cvt_fromrad( $ha0, $opt{format});
+  $ha0 = $self->_cvt_tohrs( \$opts{format}, $ha0);
+  return $self->_cvt_fromrad( $ha0, $opts{format});
 }
 
 =item B<meridian_time>
@@ -1183,7 +1215,7 @@ sub meridian_time {
   # the apparent RA depends on the current time yet the apparent RA
   # varies with time
   my $count = 0;
-  print "Looping..............$reftime\n" if $DEBUG;
+  print "Looping..............".$reftime->datetime."\n" if $DEBUG;
   while ( $count <= $max ) {
     $count++;
 
@@ -1192,7 +1224,7 @@ sub meridian_time {
       $self->datetime( $mtime );
     }
     $mtime = $self->_local_mtcalc();
-    print "New meridian time: $mtime\n" if $DEBUG;
+    print "New meridian time: ".$mtime->datetime ."\n" if $DEBUG;
 
     # if we want to make sure we have the next transit, we need
     # to compare the calculated time with the reference time
@@ -1323,7 +1355,7 @@ If no telescope is defined the LST will be from Greenwich.
 
 This is labelled as an internal routine since it is not clear whether
 the method to determine LST should be here or simply placed into
-C<Time::Object>. In practice this simply calls the
+C<DateTime>. In practice this simply calls the
 C<Astro::SLA::ut2lst> function with the correct args (and therefore
 does not need the MJD). It will need the longitude though so we
 calculate it here.
@@ -1351,6 +1383,8 @@ sub _lst {
 Return Azimuth and elevation for the currently stored time and telescope.
 If no telescope is present the equator is used.
 
+Currently an internal routine.
+
 =cut
 
 sub _azel {
@@ -1369,11 +1403,14 @@ sub _azel {
 
 =head2 Private Methods
 
+The following methods are not part of the public interface and can be
+modified or removed for any release of this module.
+
 =over 4
 
 =item B<_cvt_tohrs>
 
-Scale a value in radians such that it can be translated
+Internal routine to scale a value in radians such that it can be translated
 correctly to hours by routines that are assuming output is
 required in degrees (effectively dividing by 15).
 
@@ -1396,7 +1433,7 @@ sub _cvt_tohrs {
 
 =item B<_cvt_fromrad>
 
-Convert the supplied value (in radians) to the desired output
+Internal routine to convert the supplied value (in radians) to the desired output
 format. Output options are:
 
  sexagesimal - A string of format either dd:mm:ss
@@ -1446,7 +1483,7 @@ sub _cvt_fromrad {
 
 =item B<_cvt_torad>
 
-Convert from the supplied units to radians. The following
+Internal routine to convert from the supplied units to radians. The following
 units are supported:
 
  sexagesimal - A string of format either dd:mm:ss or "dd mm ss"
@@ -1541,7 +1578,7 @@ sub _cvt_torad {
 
 =item B<_mjd_tt>
 
-Retrieve the MJD in TT (Terrestrial time) rather than UTC time.
+Internal routine to retrieve the MJD in TT (Terrestrial time) rather than UTC time.
 
 =cut
 
@@ -1577,7 +1614,7 @@ sub _clone_time {
 
 =item B<_cmp_time>
 
-Compares two times (assuming the same class)
+Internal routine to Compare two times (assuming the same class)
 
   $cmp = _cmp_time( $a, $b );
 
@@ -1585,7 +1622,8 @@ Returns 1 if $a > $b (epoch)
        -1 if $a < $b (epoch)
         0 if $a == $b (epoch)
 
-Currently assumes epoch is enough for comparison.
+Currently assumes epoch is enough for comparison and so works
+for both DateTime and Time::Piece objects.
 
 =cut
 
@@ -1596,6 +1634,150 @@ sub _cmp_time {
   my $e2 = $t2->epoch;
   return $e1 <=> $e2;
 }
+
+=item B<_default_horizon>
+
+Returns the default horizon to use for rise/set calculations.
+Normally, a value is supplied to the relevant routines.
+
+In the base class, returns 0. Can be overridden by subclasses (in particular
+the moon and sun).
+
+=cut
+
+sub _default_horizon {
+  return 0;
+}
+
+=item B<_iterative_el>
+
+Use an iterative technique to calculate the time the object passes through
+a specified elevation. This routine is used for non-sidereal objects (especially
+the moon and fast asteroids) where a simple calculation assuming a sidereal
+object may lead to inaccuracies of a few minutes (maybe even 10s of minutes).
+It is called by both C<set_time> and C<rise_time> to converge on an accurate
+time of elevation.
+
+  $self->_iterative_el( $refel, $grad );
+
+The required elevation must be supplied (in radians). The second
+argument indicates whether we are looking for a solution with a
+positive (source is rising) or negative (source is setting)
+gradient. +1 indicates a rising source, -1 indicates a setting source.
+
+On entry, the C<datetime> method must return a time that is to be used
+as the starting point for convergence (the closer the better) On exit,
+the C<datetime> method will return the calculated time for that
+elevation.
+
+The algorithm used for this routine is very simple. Try not to call it
+repeatedly.
+
+=cut
+
+sub _iterative_el {
+  my $self = shift;
+  my $refel = shift;
+  my $grad = shift;
+
+  # See what type of date object we are dealing with
+  my $use_dt = $self->_isdt();
+
+  # Calculate current elevation
+  my $el = $self->el;
+
+  # Tolerance (1 minute of arc)
+  my $tol = ( 30 / 3600 ) * Astro::SLA::DD2R;
+
+  # Get the estimated time for this elevation
+  my $time = $self->datetime;
+
+  # now compare the requested elevation with the actual elevation for the
+  # previously calculated rise time
+  if (abs($el - $refel) > $tol ) {
+    if ($DEBUG) {
+      print "# ================================ -> ".$self->name."\n";
+      print "# Requested elevation: " . (Astro::SLA::DR2D * $refel) ."\n";
+      print "# Elevation out of range: ". $self->el(format => 'deg')."\n";
+      print "# For " . ($grad > 0 ? "rise" : "set")." time: ". $time->datetime ."\n";
+    }
+
+    # use 1 minute for all except the moon
+    my $inc = 60; # seconds
+    $inc *= 10 if lc($self->name) eq 'moon';
+
+    my $sign = ($el < $refel ? 1 : -1); # incrementing or decrementing time
+    my $prevel; # previous elevation
+
+    # This is a very simple convergence algorithm.
+    # Newton-Raphson would be much faster given that the function
+    # is almost linear for most elevations.
+    while (abs($el-$refel) > $tol) {
+      if (defined $prevel) {
+	# should check sign of gradient to make sure we are not
+	# running away to an incorrect gradient
+
+	# see if which way we should be moving
+	if ( abs($prevel - $refel) < abs( $el - $refel )) {
+	  # the gap between the previous measurement and the reference
+	  # is smaller than the current gap. We seem to be diverging.
+	  # Change direction
+	  $sign *= -1;
+	  # and use half the step size
+	  $inc /= 2;
+
+	  # in the linear approximation
+	  # we know the gradient
+
+	}
+      }
+
+      # Now calculate a new time
+      my $delta = $sign * $inc;
+      if (!$use_dt) {
+	$time = $time + $delta;
+	# we have created a new object so need to store it for next time
+	# round
+	$self->datetime( $time );
+      } else {
+	# increment the time (this happens in place so we do not need to
+	# register the change with the datetime method
+	$time->add( seconds => "$delta" );
+      }
+      # recalculate the elevation, storing the previous as reference
+      $prevel = $el;
+      $el = $self->el;
+      print "# New elevation: ". $self->el(format=>'deg')." \t@ ".$time->datetime."\n"
+	if $DEBUG;
+    }
+
+  }
+}
+
+=item B<_isdt>
+
+Internal method. Returns true if the C<datetime> method contains a DateTime
+object. Returns false otherwise (assumed to be Time::Piece). If an optional argument
+is supplied that argument is tested instead.
+
+  $isdt = $self->_isdt();
+  $isdt = $self->_idt( $dt );
+
+=cut
+
+sub _isdt {
+  my $self = shift;
+  my $test = shift;
+
+  $test = $self->datetime unless defined $test;
+
+  if (blessed( $test ) eq 'DateTime' ) {
+    return 1;
+  } else {
+    return 0;
+  }
+}
+
 
 =back
 
@@ -1621,6 +1803,9 @@ These are usually only relevant for the Sun. Note that refraction
 effects may affect the actual answer and these are simply average
 definitions.
 
+For the Sun and Moon the expected defaults are used if no horizon
+is specified (ie SUN_RISE_SET is used for the Sun).
+
 =head1 REQUIREMENTS
 
 C<Astro::SLA> is used for all internal astrometric calculations.
@@ -1631,7 +1816,7 @@ Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2003 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2004 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 

@@ -1,3 +1,14 @@
+2004-11-21  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Planet.pm: Add diam() method to return the
+	planet diameter. Also had support for defaulting the "horizon" for
+	Sun and Moon rise/set times.
+
+	* t/riseset.t: Many more tests of Sun and Moon elevations.
+
+	* lib/Astro/Coords.pm: Moon rise and set times now working. This
+	involves an iterative calculation.
+
 2004-10-22  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm (meridian_time): Add "nearest" to allow the
