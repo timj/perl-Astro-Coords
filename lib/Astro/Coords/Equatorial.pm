@@ -141,7 +141,7 @@ sub new {
   # Extract the proper motions into convenience variables
   my $pm1 = $pm->[0];
   my $pm2 = $pm->[1];
-print "pm1: $pm1\npm2: $pm2\n";
+
   my ($ra, $dec);
 
   if ($args{type} =~ /^j([0-9\.]+)/i) {
@@ -481,7 +481,7 @@ sub dec2000 {
 =item B<parallax>
 
 Retrieve (or set) the parallax of the target. Units should be
-given in arcseconds. Default is 0 arcsec.
+given in arcseconds. There is no default.
 
   $par = $c->parallax();
   $c->parallax( 0.13 );
@@ -503,6 +503,8 @@ declination).
 
   @pm = $self->pm();
   $self->pm( $pm1, $pm2);
+
+If the proper motions are not defined, an empty array will be returned.
 
 =cut
 
