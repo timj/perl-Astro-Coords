@@ -1,6 +1,6 @@
 #!perl
 use strict;
-use Test::More tests => 4;
+use Test::More tests => 6;
 
 require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
@@ -30,5 +30,18 @@ $fs->telescope( $tel );
 is( $fs->ra(format=>'s'),  " 06:14:01.79", "RA of LHS 216");
 is( $fs->dec(format=>'s'), " 15:09:49.19", "Dec of LHS216");
 
+# Test out of SUN/67, section titled "Mean Place Transformations"
+my $c = new Astro::Coords( name => "target",
+                           ra => '16 9 55.13',
+                           dec => '-75 59 27.2',
+                           type => 'B1900',
+                           epoch => 1963.087,
+                           pm => [ -0.468, 0.103 ],
+                           parallax => 0.062,
+                           units => 's',
+                         );
+$t = gmtime( 768427560 );
+$c->datetime( $t );
 
-
+is( $c->ra( format => 's' ), " 16:23:07.89", "RA for SUN/67 test");
+is( $c->dec( format => 's' ), "-76:13:58.93", "Dec for SUN/67 test");
