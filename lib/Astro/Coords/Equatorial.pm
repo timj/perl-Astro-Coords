@@ -330,14 +330,26 @@ sub new {
 
 =item B<radec>
 
-Retrieve the Right Ascension and Declination (FK5 J2000) for the date stored in the
-C<datetime> method. Defaults to current date if no time is stored
-in the object.
+Retrieve the Right Ascension and Declination (FK5 J2000) for the date
+stored in the C<datetime> method. Defaults to current date if no time
+is stored in the object.
 
   ($ra, $dec) = $c->radec();
 
 For J2000 coordinates without proper motions or parallax, this will
 return the same values as returned from the C<radec2000> method.
+
+An explicit equinox can be supplied as either Besselian or Julian
+epoch:
+
+  ($ra, $dec) = $c->radec( 'B1950' );
+  ($ra, $dec) = $c->radec( 'J2050' );
+  ($ra, $dec) = $c->radec( 'B1900' );
+
+Defaults to 'J2000'. Note that the epoch (as stored in the C<datetime>
+attribute) is required when converting from FK5 to FK4 so calling this
+method with 'B1950' will not be the same as calling the C<radec1950>
+method unless the C<datetime> epoch is B1950.
 
 Coordinates are returned as two C<Astro::Coords::Angle> objects.
 
@@ -345,6 +357,7 @@ Coordinates are returned as two C<Astro::Coords::Angle> objects.
 
 sub radec {
   my $self = shift;
+  my ($sys, $equ) = $self->_parse_equinox( shift || 'J2000' );
 
   # If we have proper motions we need to take them into account
   # Do this using slaPm rather than via the base class since it
@@ -352,10 +365,13 @@ sub radec {
   my @pm = $self->pm;
   my $par = $self->parallax;
 
+  # First convert to J2000 current epoch
+
   # Fix PM array and parallax if none-defined
   @pm = (0,0) unless @pm;
   $par = 0 unless defined $par;
 
+  # J2000 Epoch 2000.0
   my ($ra,$dec) = $self->radec2000();
 
   if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
@@ -374,7 +390,22 @@ sub radec {
     $dec = new Astro::Coords::Angle( $dec, units => 'rad' );
   }
 
-  return ($ra, $dec);
+  # Return it if we have the right answer
+  if ($sys eq 'FK5' && $equ == 2000.0) {
+    # Already have the right answer
+  } elsif ($sys eq 'FK5') {
+    # Preces to new equinox
+    Astro::SLA::slaPreces( 'FK5', 2000.0, $equ, $ra, $dec );
+
+  } else {
+    # Convert to BYYYY
+    ($ra, $dec) = $self->_j2000_to_byyyy( $equ, $ra, $dec);
+
+  }
+
+  return (new Astro::Coords::Angle::Hour($ra, units => 'rad', range => '2PI'),
+	  new Astro::Coords::Angle($dec, units => 'rad'));
+
 }
 
 
@@ -433,9 +464,9 @@ sub dec {
 Retrieve the Right Ascension (FK5 J2000, epoch 2000.0). Default
 is to return it as an C<Astro::Coords::Angle::Hour> object.
 
-The coordinates returned by this method are B<not> adjusted for proper
-motion or parallax. Use the C<radec> method if you want J2000, reference epoch.
-This method is only available to the Equatorial class.
+Proper motions and parallax are taken into account (although this may
+happen in the object constructor). Use the C<radec> method if you want
+J2000, reference epoch.
 
   ($ra, $dec) = $c->radec2000;
 
@@ -453,9 +484,9 @@ sub radec2000 {
 Retrieve the Right Ascension (FK5 J2000, epoch 2000.0). Default
 is to return it as an C<Astro::Coords::Angle::Hour> object.
 
-The coordinates returned by this method are B<not> adjusted for proper
-motion or parallax. Use the C<ra> method if you want J2000, reference epoch.
-This method is only available to the Equatorial class.
+Proper motions and parallax are taken into account (although this may
+happen in the object constructor).  Use the C<ra> method if you want
+J2000, reference epoch.
 
   $ra = $c->ra2000( format => "s" );
 
@@ -482,9 +513,9 @@ is to return it in radians.
 
   $dec = $c->dec( format => "sexagesimal" );
 
-The coordinates returned by this method are B<not> adjusted for proper
-motion or parallax. Use the C<dec> method if you want J2000, reference epoch.
-This method is only available to the Equatorial class.
+Proper motions and parallax are taken into account (although this may
+happen in the object constructor).  Use the C<dec> method if you want
+J2000, reference epoch.
 
 See L<Astro::Coords/"NOTES"> for details on the supported format
 specifiers and default calling convention.
@@ -603,7 +634,7 @@ sub apparent {
 
 Return back 11 element array with first 3 elements being the
 coordinate type (RADEC) and the ra/dec coordinates in J2000
-(radians).
+epoch 2000.0 (radians).
 
 This method returns a standardised set of elements across all
 types of coordinates.
@@ -612,7 +643,8 @@ types of coordinates.
 
 sub array {
   my $self = shift;
-  return ( $self->type, $self->ra->radians, $self->dec->radians,
+  my ($ra, $dec) = $self->radec2000;
+  return ( $self->type, $ra->radians, $dec->radians,
 	   undef, undef, undef, undef, undef, undef, undef, undef);
 }
 

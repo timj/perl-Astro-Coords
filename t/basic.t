@@ -1,5 +1,6 @@
+#!perl
 use strict;
-use Test::More tests => 95;
+use Test::More tests => 97;
 
 require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
@@ -19,6 +20,10 @@ ok($c, "create object");
 
 is($c->native, 'radec1950', 'check native type');
 my ($r1950, $d1950) = $c->radec1950;
+is( $r1950->string, "15:22:33.30", "compare B1950 RA");
+is( $d1950->string, "-00:13:04.50", "compare B1950 dec");
+
+($r1950, $d1950) = $c->radec1950();
 is( $r1950->string, "15:22:33.30", "compare B1950 RA");
 is( $d1950->string, "-00:13:04.50", "compare B1950 dec");
 
@@ -286,7 +291,7 @@ is(sprintf("%.2f",$c->az(format => 'd')), '187.57',"Hale-Bopp azimuth");
 is(sprintf("%.1f",$c->el(format => 'd')), '22.1',"Hale-Bopp elevation");
 
 # Limit resolution for comparison
-my ($ra_bopp, $dec_bopp) = $c->radec;
+my ($ra_bopp, $dec_bopp) = $c->radec();
 $ra_bopp->str_ndp( 0 );
 $dec_bopp->str_ndp( 1 );
 is($ra_bopp->string,"08:09:08","Hale-Bopp RA");

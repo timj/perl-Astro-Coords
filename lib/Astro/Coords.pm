@@ -613,9 +613,20 @@ Returns two C<Astro::Coords::Angle> objects.
 
 sub radec {
   my $self = shift;
+  my ($sys, $equ) = $self->_parse_equinox( shift || 'J2000' );
   my ($ra_app, $dec_app) = $self->apparent;
   my $mjd = $self->_mjd_tt;
-  Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, 2000.0, my $rm, my $dm);
+  my ($rm, $dm);
+  if ($sys eq 'FK5') {
+    # Julian epoch
+    Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, $equ, $rm, $dm);
+  } elsif ($sys eq 'FK4') {
+    # Convert to J2000 and then convert to Besselian epoch
+    Astro::SLA::slaAmp($ra_app, $dec_app, $mjd, 2000.0, $rm, $dm);
+
+    ($rm, $dm) = $self->_j2000_to_byyyy( $equ, $rm, $dm);
+  }
+
   return (new Astro::Coords::Angle::Hour( $rm, units => 'rad', range => '2PI'),
 	  new Astro::Coords::Angle( $dm, units => 'rad' ));
 }
@@ -642,7 +653,7 @@ sub ra {
 =item B<dec>
 
 Return the J2000 declination for the target. Unless overridden
-by a subclass this converts the apparrent RA/Dec to J2000.
+by a subclass this converts the apparent RA/Dec to J2000.
 
   $dec2000 = $c->dec( format => "s" );
 
@@ -811,12 +822,57 @@ sub ecllonglat {
 	  new Astro::Coords::Angle($lat, units => 'rad'));
 }
 
+=item B<radec2000>
+
+Convenience wrapper routine to return the J2000 coordinates for epoch
+2000.0. This is not the same as calling the C<radec> method with
+equinox J2000.0.
+
+ ($ra2000, $dec2000) = $c->radec2000;
+
+It is equivalent to setting the epoch in the object to 2000.0
+(ie midday on 2000 January 1) and then calling C<radec>.
+
+The answer will be location dependent in most cases.
+
+Results are returned as two C<Astro::Coords::Angle> objects.
+
+=cut
+
+sub radec2000 {
+  my $self = shift;
+
+  # store current configuration
+  my $reftime = $self->datetime;
+  my $havedt = $self->has_datetime;
+
+  # Create new time
+  $self->datetime( DateTime->new( year => 2000, month => 1,
+				  day => 1, hour => 12) );
+
+  # Ask for the answer
+  my ($ra, $dec) = $self->radec( 'J2000' );
+
+  # restore the date state
+  $self->datetime( ( $havedt ? $reftime : undef ) );
+
+  return ($ra, $dec);
+}
+
 =item B<radec1950>
 
-Return the FK4 B1950 coordinates. In the base class these are
-calculated by precessing the J2000 RA/Dec for the current date and
-time, which are themselves derived from the apparent RA/Dec for the
-current time.
+Convenience wrapper to return the FK4 B1950 coordinates for the
+currently defined epoch. Since the FK4 to FK5 conversion requires an
+epoch, the J2000 coordinates are first calculated for the current
+epoch and the frame conversion is done to epoch B1950.
+
+This is technically not the same as calling the radec() method with
+equinox B1950 since that would use the current epoch associated with
+the coordinates when converting from FK4 to FK5.
+
+In the base class these are calculated by precessing the J2000 RA/Dec
+for the current date and time, which are themselves derived from the
+apparent RA/Dec for the current time.
 
  ($ra, $dec) = $c->radec1950;
 
@@ -828,7 +884,9 @@ sub radec1950 {
   my $self = shift;
   my ($ra, $dec) = $self->radec;
 
-  Astro::SLA::slaFk54z($ra,$dec,1950.0,my $r1950, my $d1950, my $dr1950, my $dd1950);
+  # No E-terms or precession since we are going to B1950 epoch 1950
+  Astro::SLA::slaFk54z($ra,$dec,1950.0,my $r1950, 
+		       my $d1950, my $dr1950, my $dd1950);
 
   return (new Astro::Coords::Angle::Hour( $r1950, units => 'rad', range => '2PI'),
 	  new Astro::Coords::Angle( $d1950, units => 'rad' ));
@@ -2389,6 +2447,77 @@ sub _normalise_vdefn {
   } else {
     croak "Unrecognized velocity definition '$trunc'";
   }
+}
+
+=item B<_parse_equinox>
+
+Given an equinox string of the form JYYYY.frac or BYYYY.frac
+return the epoch of the equinox and the system of the equinox.
+
+  ($system, $epoch ) = $c->_parse_equinox( 'B1920.34' );
+
+If no leading letter, Julian epoch is assumed. If the string does not
+match the reuquired pattern, J2000 will be assumed and a warning will
+be issued.
+
+System is returned as 'FK4' for Besselian epoch and 'FK5' for
+Julian epoch.
+
+=cut
+
+sub _parse_equinox {
+  my $self = shift;
+  my $str = shift;
+  my ($sys, $epoch) = ('FK5', 2000.0);
+  if ($str =~ /^([BJ]?)(\d+(\.\d+)?)$/i) {
+    my $typ = $1;
+    $sys = ($typ eq 'B' ? 'FK4' : 'FK5' );
+    $epoch = $2;
+  } else {
+    warnings::warnif( "Supplied equinox '$str' does not look like an equinox");
+  }
+  return ($sys, $epoch);
+}
+
+=item B<_j2000_to_byyyy>
+
+Since we always store in J2000 internally, converting between
+different Julian equinoxes is straightforward. This routine takes a
+J2000 coordinate pair (with proper motions and parallax already
+applied) and converts them to Besselian equinox for the current epoch.
+
+  ($bra, $bdec) = $c->_j2000_to_BYYY( $equinox, $ra2000, $dec2000);
+
+The equinox is the epoch year. It is assumed to be Besselian.
+
+=cut
+
+sub _j2000_to_byyyy {
+  my $self = shift;
+  my ($equ, $ra2000, $dec2000) = @_;
+
+  # First to 1950
+  Astro::SLA::slaFk54z($ra2000, $dec2000, 
+		       Astro::SLA::slaEpb( $self->_mjd_tt ),
+		       my $rb, my $db, my $drb, my $drd);
+
+  # Then preces to reference epoch frame
+  # I do not know whether fictitious proper motions should be included
+  # here with slaPm or whether it is enough to use non-1950 epoch
+  # in slaFk54z and then preces 1950 to the same epoch. Not enough test
+  # data for this rare case.
+  if ($equ != 1950) {
+    # Add E-terms
+    Astro::SLA::slaSubet( $rb, $db, 1950.0, my $rnoe, my $dnoe);
+
+    # preces
+    Astro::SLA::slaPreces( 'FK4', 1950, $equ, $rnoe, $dnoe);
+
+    # Add E-terms
+    Astro::SLA::slaAddet( $rnoe, $dnoe, $equ, $rb, $db);
+
+  }
+  return ($rb, $db);
 }
 
 =back
