@@ -479,6 +479,8 @@ This consists of the current elevation, azimuth, hour angle
 and declination. If a telescope is defined the observability
 of the target is included.
 
+  $status = $c->status;
+
 =cut
 
 sub status {
