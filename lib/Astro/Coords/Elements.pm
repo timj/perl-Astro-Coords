@@ -19,6 +19,7 @@ specified as orbital elements.
 use 5.006;
 use strict;
 use warnings;
+use Carp;
 
 our $VERSION = '0.02';
 
@@ -73,15 +74,20 @@ suitable for minor planets:
 suitable for comets:
 
 
- EPOCH 		 =  epoch of perihelion T (TT MJD)
+ EPOCH 		 =  epoch of elements t0 (TT MJD)
  ORBINC        	 =  inclination i (radians)
  ANODE 		 =  longitude of the ascending node  [$\Omega$] (radians)
  PERIH 		 =  argument of perihelion  [$\omega$] (radians)
  AORQ 		 =  perihelion distance q (AU)
  E 		 =  eccentricity e
+ EPOCHPERIH      = epoch of perihelion T (TT MJD)
 
-See the documentation to slaPlante() for more information.
+See the documentation to slaPlante() and slaPertel() for more information.
 Keys must be upper case.
+
+For comets if the only one epoch is specified it is assumed that the
+epochs are identical. This may cause problems if the epochs are not
+really close to each other.
 
 In order to better match normal usage, EPOCH can also be specified
 as a string of the form 'YYYY mmm D.frac' (e.g. '1997 Apr 1.567').
@@ -102,38 +108,40 @@ sub new {
     return undef unless exists $opts{elements}->{$_};
   }
 
-  # Fix up EPOCH if it has been specified as a string
-  my $epoch = $opts{elements}->{EPOCH};
-  if ($epoch =~ /^\d+\.\d+$/) {
-    # an MJD so do not modify
-  } elsif ($epoch =~ /\d\d\d\d \w\w\w \d+\.\d+/) {
-    # has letters in it so try to parse
-    # Split on decimal point
-    my ($date, $frac) = split(/\./,$epoch,2);
-    $frac = "0.". $frac; # preserve as decimal fraction
-    my $format = '%Y %B %d';
-    #print "EPOCH : $epoch and $date and $frac\n";
-    my $obj = Time::Piece->strptime($date, $format);
-    my $tzoffset = $obj->tzoffset;
-    $obj = gmtime($obj->epoch() + $tzoffset);
+  # Fix up EPOCHs if it has been specified as a string
+  for my $key (qw/ EPOCH EPOCHPERIH / ) {
+    next unless exists $opts{elements}->{$key};
+    my $epoch = $opts{elements}->{$key};
+    if ($epoch =~ /^\d+\.\d+$/ || $epoch =~ /^\d+$/) {
+      # an MJD so do not modify
+    } elsif ($epoch =~ /\d\d\d\d \w\w\w \d+\.\d+/) {
+      # has letters in it so try to parse
+      # Split on decimal point
+      my ($date, $frac) = split(/\./,$epoch,2);
+      $frac = "0.". $frac; # preserve as decimal fraction
+      my $format = '%Y %B %d';
+      #print "EPOCH : $epoch and $date and $frac\n";
+      my $obj = Time::Piece->strptime($date, $format);
+      my $tzoffset = $obj->tzoffset;
+      $obj = gmtime($obj->epoch() + $tzoffset);
 
-    # get the MJD and add on the fraction
-    my $mjd = $obj->mjd() + $frac;
-    $opts{elements}->{EPOCH} = $mjd;
-    #print "MJD: $mjd\n";
+      # get the MJD and add on the fraction
+      my $mjd = $obj->mjd() + $frac;
+      $opts{elements}->{EPOCH} = $mjd;
+      #print "MJD: $mjd\n";
 
-  } else {
-    # do not understand the format so return undef
-    warn "Unable to recognize format for elements epoch [$epoch]";
-    return undef;
+    } else {
+      # do not understand the format so return undef
+      warn "Unable to recognize format for elements $key [$epoch]";
+      return undef;
+    }
   }
-
 
   # Copy the elements
   my %el = %{ $opts{elements}};
 
   bless { elements => \%el, name => $opts{name} }, $class;
-  
+
 }
 
 
@@ -172,6 +180,8 @@ presented in the documentation of the constructor.
 
 This method returns a standardised set of elements across all
 types of coordinates.
+
+Note that EPOCHPERIH is I<not> returned yet.
 
 =cut
 
@@ -247,14 +257,26 @@ sub _apparent {
   my %el = $self->elements;
   my $jform;
   if (exists $el{DM} and defined $el{DM}) {
+    # major planets
     $jform = 1;
   } elsif (exists $el{AORL} and defined $el{AORL}) {
+    # minor planets
     $jform = 2;
     $el{DM} = 0;
   } else {
+    # comets
     $jform = 3;
     $el{DM} = 0;
     $el{AORL} = 0;
+  }
+
+  # synch epoch if need be
+  if (!exists $el{EPOCH} || !exists $el{EPOCHPERIH}) {
+    if (exists $el{EPOCH}) {
+      $el{EPOCHPERIH} = $el{EPOCH};
+    } else {
+      $el{EPOCH} = $el{EPOCHPERIH};
+    }
   }
 
   # First have to perturb the elements to the current epoch
@@ -267,13 +289,13 @@ sub _apparent {
     #print "Before perturbing: ". Dumper(\%el);
     #print "MJD ref : " . $self->_mjd_tt . " and jform = $jform\n";
     Astro::SLA::slaPertel($jform,$el{EPOCH},$self->_mjd_tt,
-			  $el{EPOCH},$el{ORBINC},$el{ANODE},
+			  $el{EPOCHPERIH},$el{ORBINC},$el{ANODE},
 			  $el{PERIH},$el{AORQ},$el{E},$el{AORL},
 			  $el{EPOCH},$el{ORBINC}, $el{ANODE},
 			  $el{PERIH},$el{AORQ},$el{E},$el{AORL},
 			  my $jstat);
     #print "After perturbing: " .Dumper(\%el);
-    return () if $jstat != 0;
+    croak "Error perturbing elements [status=$jstat]" if $jstat != 0;
   }
 }
 
@@ -290,7 +312,7 @@ sub _apparent {
 			$el{AORQ}, $el{E}, $el{AORL}, $el{DM}, 
 			my $ra, my $dec, my $dist, my $j);
 
-  return () if $j != 0;
+  croak "Error determining apparent RA/Dec [status=$j]" if $j != 0;
 
   # Convert from observed to apparent place
   Astro::SLA::slaOap("r", $ra, $dec, $self->_mjd_tt, 0.0, $long, $lat, 
