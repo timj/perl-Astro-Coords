@@ -1,6 +1,6 @@
 #!perl
 use strict;
-use Test::More tests => 12;
+use Test::More tests => 15;
 
 require_ok('Astro::Coords::Angle');
 require_ok('Astro::Coords::Angle::Hour');
@@ -40,3 +40,15 @@ my $ra = new Astro::Coords::Angle::Hour( '12h13m45.6s', units => 'sex',
 
 is("$ra", '-11h46m14.4s', "hour angle -12 to +12");
 isa_ok( $ra, "Astro::Coords::Angle::Hour");
+
+# guess units
+
+my $ang3 = new Astro::Coords::Angle( 45 );
+is($ang3->degrees, 45, "Check 45 deg without units");
+
+my $ang4 = new Astro::Coords::Angle( '45:00:00' );
+is($ang4->degrees, 45, "Check 45:00:00 deg without units");
+
+my $rad = 0.5;
+my $ang5 = new Astro::Coords::Angle( $rad );
+is($ang5->radians, 0.5, "Check 0.5 rad is still 0.5 rad");
