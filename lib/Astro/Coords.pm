@@ -75,7 +75,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Astro::SLA ();
 use Astro::Coords::Equatorial;
