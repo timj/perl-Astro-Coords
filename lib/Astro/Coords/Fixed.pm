@@ -240,7 +240,8 @@ sub ha {
 
 Return the apparent RA and Dec (in radians)
 for the current time [note that the apparent declination
-is fixed and the apparent RA changes].
+is fixed and the apparent RA changes]. The RA is put into
+the standard range.
 
 If no telescope is present the equator is used.
 
@@ -251,6 +252,9 @@ sub _apparent {
 
   my ($ha, $dec_app) = $self->_hadec;
   my $ra_app = $self->_lst - $ha;
+
+  # Wrap back to 2 PI radians
+  $ra_app = Astro::SLA::slaDranrm( $ra_app );
 
   return( $ra_app, $dec_app);
 }
@@ -289,11 +293,11 @@ C<Astro::SLA> is used for all internal astrometric calculations.
 
 =head1 AUTHOR
 
-Tim Jenness E<lt>t.jenness@jach.hawaii.eduE<gt>
+Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright (C) 2001-2002 Particle Physics and Astronomy Research Council.
+Copyright (C) 2001-2003 Particle Physics and Astronomy Research Council.
 All Rights Reserved. This program is free software; you can
 redistribute it and/or modify it under the same terms as Perl itself.
 
