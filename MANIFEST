@@ -2,10 +2,12 @@ Makefile.PL
 ChangeLog
 MANIFEST
 README
+t/1_compile.t
 t/basic.t
 t/rev.t
 t/pm.t
 t/riseset.t
+t/calc.t
 lib/Astro/Coords.pm
 lib/Astro/Coords/Planet.pm
 lib/Astro/Coords/Equatorial.pm
