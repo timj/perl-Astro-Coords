@@ -9,8 +9,8 @@ WriteMakefile(
                'NAME'           => 'Astro::Coords',
 	       'VERSION_FROM'   => $file,
                'PREREQ_PM'      => { 
-				    Astro::SLA => undef,
-				    Time::Piece => '1.00',
+				    Astro::SLA => '0.95',
+				    Time::Piece => '1.02',
 				   },
 	       'dist'           => { COMPRESS => "gzip -9f"},
 	       ($] >= 5.005 ?    ## Add these new keywords supported since 5.005
