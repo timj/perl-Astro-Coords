@@ -721,6 +721,7 @@ Returns an array of hashes. Each hash contains
   elevation
   azimuth
   parang
+  lst [always in radians]
 
 The angles are in the units specified (radians, degrees or sexagesimal).
 
@@ -757,6 +758,7 @@ sub calculate {
     $timestep{elevation} = $self->el( format => $opts{units} );
     $timestep{azimuth} = $self->az( format => $opts{units} );
     $timestep{parang} = $self->pa( format => $opts{units} );
+    $timestep{lst}    = $self->_lst();
 
     # store the timestep
     push(@data, \%timestep);

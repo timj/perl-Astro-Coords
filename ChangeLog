@@ -1,3 +1,7 @@
+2003-02-18  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm: Add lst to the return hash in calculate method
+
 2002-11-10  Tim Jenness  <t.jenness@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm (calculate): Add calculate method
