@@ -51,7 +51,8 @@ for my $chash (keys %test) {
   #print $c->status;
 
   # now instantiate an AZEL object
-  my $azel = new Astro::Coords( az => $c->az, el => $c->el,
+  my $azel = new Astro::Coords( az => $c->az(format => 'rad'), 
+				el => $c->el(format => 'rad'),
 				units => 'radians');
 
   $azel->datetime( $date );
@@ -62,7 +63,7 @@ for my $chash (keys %test) {
   # compare
   my $fmt = '%.5g';
   for my $type (qw/ az el ra_app dec_app _lst /) {
-    is(sprintf($fmt,$azel->$type), sprintf($fmt,$c->$type),
+    is(sprintf($fmt,$azel->$type->radians), sprintf($fmt,$c->$type->radians),
        "compare $type");
   }
   is(sprintf($fmt,$azel->ha(normalize=>1)), sprintf($fmt,$c->ha(normalize=>1)),

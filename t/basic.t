@@ -1,19 +1,30 @@
 use strict;
-use Test::More tests => 92;
+use Test::More tests => 95;
 
 require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
 use Time::Piece ':override';
 
-# Simulataneously test negative zero dec and B1950 to J2000 conversion
+# Force stringification to use colons
+Astro::Coords::Angle->DELIM(':');
+Astro::Coords::Angle::Hour->DELIM(':');
+Astro::Coords::Angle::Hour->NDP(2);
+
+# Simultaneously test negative zero dec and B1950 to J2000 conversion
 my $c = new Astro::Coords( ra => "15:22:33.3",
 	                   dec => "-0:13:4.5",
 			   type => "B1950");
 
 ok($c, "create object");
+
+is($c->native, 'radec1950', 'check native type');
+my ($r1950, $d1950) = $c->radec1950;
+is( $r1950->string, "15:22:33.30", "compare B1950 RA");
+is( $d1950->string, "-00:13:04.50", "compare B1950 dec");
+
 print "#J2000: $c\n";
 # Compare with J2000 values
-is( $c->ra(format=>'s'), " 15:25:07.35","compare J2000 RA");
+is( $c->ra(format=>'s'), "15:25:07.35","compare J2000 RA");
 is( $c->dec(format=>'s'), "-00:23:35.76","compare J2000 Dec");
 
 # Calculate distance
@@ -167,7 +178,7 @@ $c = new Astro::Coords( ra => '07 42 16.939',
 			name => 'OH231.8');
 
 is( $c->dec(format => 'sex'), "-14:42:49.05","Test Dec stringification");
-is( $c->ra(format => 'sex'), " 07:42:16.94","Test RA stringification");
+is( $c->ra(format => 'sex'), "07:42:16.94","Test RA stringification");
 
 my $array = $c->dec(format => 'array');
 is($array->[0],'-',"test Array sign");
@@ -182,7 +193,7 @@ $c = new Astro::Coords( ra => '07 42 16.83',
 			name => 'OH231.8 [alternative]');
 
 is( $c->dec(format => 'sex'), "-14:42:52.10","Test Dec stringification");
-is( $c->ra(format => 'sex'), " 07:42:16.83","Test RA stringification");
+is( $c->ra(format => 'sex'), "07:42:16.83","Test RA stringification");
 
 $array = $c->dec(format => 'array');
 is($array->[0],'-',"test Array sign");
@@ -274,8 +285,12 @@ print "# LST " . ($c->_lst * &Astro::SLA::DR2H). "\n";
 is(sprintf("%.2f",$c->az(format => 'd')), '187.57',"Hale-Bopp azimuth");
 is(sprintf("%.1f",$c->el(format => 'd')), '22.1',"Hale-Bopp elevation");
 
-is(substr($c->ra(format=>'s'),1,8),"08:09:07","Hale-Bopp RA");
-is(substr($c->dec(format=>'s'),0,11),"-47:25:27.5","Hale-Bopp Dec");
+# Limit resolution for comparison
+my ($ra_bopp, $dec_bopp) = $c->radec;
+$ra_bopp->str_ndp( 0 );
+$dec_bopp->str_ndp( 1 );
+is($ra_bopp->string,"08:09:08","Hale-Bopp RA");
+is($dec_bopp->string,"-47:25:27.5","Hale-Bopp Dec");
 
 my $s = $c->status;
 my @s = split /\n/,$s;
