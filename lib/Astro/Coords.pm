@@ -108,7 +108,7 @@ use Carp;
 use vars qw/ $DEBUG /;
 $DEBUG = 0;
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 use Math::Trig qw/ acos /;
 use Astro::SLA ();
@@ -168,9 +168,12 @@ A planet name can be specified with:
 Orbital elements as:
 
   $c = new Astro::Coords( elements => \%elements );
+  $c = new Astro::Coords( elements => \@array );
 
 where C<%elements> must contain the names of the elements
-as used in the SLALIB routine slaPlante.
+as used in the SLALIB routine slaPlante, and @array is the
+contents of the array returned by calling the array() method
+on another Elements object.
 
 Fixed astronomical oordinate frames can be specified using:
 
@@ -235,11 +238,13 @@ sub new {
     # but also make sure that that key points to a hash containing
     # at least the EPOCH or EPOCHPERIH key
     if (exists $args{elements} and defined $args{elements}
-       && UNIVERSAL::isa($args{elements},"HASH") 
-       &&  (exists $args{elements}{EPOCH}
+       && (UNIVERSAL::isa($args{elements},"HASH") # A hash
+       &&  ((exists $args{elements}{EPOCH}
        and defined $args{elements}{EPOCH})
        ||  (exists $args{elements}{EPOCHPERIH}
-       and defined $args{elements}{EPOCHPERIH})
+       and defined $args{elements}{EPOCHPERIH}))) ||
+	( ref($args{elements}) eq 'ARRAY' && # ->array() ref
+	  $args{elements}->[0] eq 'ELEMENTS')
      ) {
 
       $obj = new Astro::Coords::Elements( %args );

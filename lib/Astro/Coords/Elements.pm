@@ -21,7 +21,7 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 # Need working slaPlante
 use Astro::SLA 0.95 ();
@@ -44,11 +44,13 @@ use overload '""' => "stringify";
 Instantiate a new object using the supplied options.
 
   $c = new Astro::Coords::Elements( elements => \%elements );
+  $c = new Astro::Coords::Elements( elements => \@array );
 
 Returns undef on error.
 
-The elements must be specified in a hash containing the following
-keys:
+The elements can be specified either by using a reference to an array
+returned by the C<array()> method of another elements object or in a
+reference to a hash containing the following keys:
 
 suitable for the major planets:
 
@@ -81,7 +83,7 @@ suitable for comets:
  PERIH 		 =  argument of perihelion  [$\omega$] (radians)
  AORQ 		 =  perihelion distance q (AU)
  E 		 =  eccentricity e
- EPOCHPERIH      = epoch of perihelion T (TT MJD)
+ EPOCHPERIH      =  epoch of perihelion T (TT MJD)
 
 See the documentation to slaPlante() and slaPertel() for more information.
 Keys must be upper case.
@@ -101,27 +103,52 @@ sub new {
   my $class = ref($proto) || $proto;
 
   my %opts = @_;
-  return undef unless (exists $opts{elements}
-    && ref($opts{elements}) eq "HASH");
+
+  # "elements" key must be defined and point to a reference
+  return undef unless (exists $opts{elements} && ref($opts{elements}));
+
+  # We allow use of an array reference or a hash
+  # The array ref is converted to a hash
+  my %elements;
+  if (ref($opts{elements}) eq 'HASH') {
+    %elements = %{ $opts{elements} };
+  } elsif (ref($opts{elements}) eq 'ARRAY' &&
+	   $opts{elements}->[0] eq 'ELEMENTS') {
+
+    my $i = 3;
+    for my $key (qw/ EPOCH ORBINC ANODE PERIH AORQ E AORL /) {
+      $elements{$key} = $opts{elements}->[$i];
+      $i++;
+    }
+    # assign EPOCHPERIH
+    if (!defined $elements{AORL} && defined $opts{elements}->[$i]) {
+      $elements{EPOCHPERIH} = $opts{elements}->[$i];
+    } else {
+      $elements{DM} = $opts{elements}->[$i];
+    }
+
+  } else {
+    return undef;
+  }
 
   # Sanity check
   for (qw/ ORBINC ANODE PERIH AORQ E/) {
-    #return undef unless exists $opts{elements}->{$_};
+    #return undef unless exists $elements{$_};
     croak "Must supply element $_ to constructor"
-      unless exists $opts{elements}->{$_};
+      unless exists $elements{$_};
   }
 
   # Fix up EPOCHs if it has been specified as a string
   for my $key (qw/ EPOCH EPOCHPERIH / ) {
-    next unless exists $opts{elements}->{$key};
-    my $epoch = $opts{elements}->{$key};
+    next unless exists $elements{$key};
+    my $epoch = $elements{$key};
 
     # if we are missing one of the EPOCHs that is okay
     # so just skip
     if (! defined $epoch) {
       # and delete it from the hash as if it was never supplied
       # this avoids complications later
-      delete $opts{elements}->{$key};
+      delete $elements{$key};
       next;
     }
 
@@ -140,7 +167,7 @@ sub new {
 
       # get the MJD and add on the fraction
       my $mjd = $obj->mjd() + $frac;
-      $opts{elements}->{$key} = $mjd;
+      $elements{$key} = $mjd;
       #print "MJD: $mjd\n";
 
     } else {
@@ -152,13 +179,11 @@ sub new {
 
   # but complain if we do not have one of them
   croak "Must supply one of EPOCH or EPOCHPERIH - both were undefined"
-    if (!exists $opts{elements}->{EPOCH} &&
-	!exists $opts{elements}->{EPOCHPERIH});
+    if (!exists $elements{EPOCH} &&
+	!exists $elements{EPOCHPERIH});
 
-  # Copy the elements
-  my %el = %{ $opts{elements}};
-
-  bless { elements => \%el, name => $opts{name} }, $class;
+  # create the object
+  bless { elements => \%elements, name => $opts{name} }, $class;
 
 }
 
@@ -199,22 +224,37 @@ presented in the documentation of the constructor.
 This method returns a standardised set of elements across all
 types of coordinates.
 
-Note that EPOCHPERIH is I<not> returned yet as a separate element.
-If EPOCHPERIH is present it overrides the EPOCH of the elements.
-This is not very accurate but is usually good enough to determine
-whether the target is up.
+Note that for JFORM=3 (Comet) case the epoch of perihelion
+is stored as the 8th element (the epoch of the elements is still
+returned as the first element) [corresponding to array index 10].
+This usage of the final element can be determined by noting that
+the element before it (AORL) will be undefined in the case of JFORM=3.
+If AORL is defined then the Epoch of perihelion will not be written
+even if it is defined.
 
 =cut
 
 sub array {
   my $self = shift;
   my %el = $self->elements;
-  my $epoch = $el{EPOCHPERIH}; # use EPOCHPERIH preferentially
-  $epoch = $el{EPOCH} unless $epoch;
+
+  # use EPOCHPERIH if EPOCH is not defined
+  my $epoch = $el{EPOCH};
+  $epoch = $el{EPOCHPERIH} unless $epoch;
+
+  # the 8th element can be the EPOCHPERIH or DM field
+  # dependent on the element type.
+  my $lastel;
+  if (defined $el{EPOCHPERIH} && !defined $el{DM}
+      && !defined $el{AORL}) {
+    $lastel = $el{EPOCHPERIH};
+  } else {
+    $lastel = $el{DM};
+  }
 
   return ( $self->type, undef, undef,
 	   $epoch, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
-	   $el{AORQ}, $el{E}, $el{AORL}, $el{DM});
+	   $el{AORQ}, $el{E}, $el{AORL}, $lastel);
 }
 
 =item B<type>

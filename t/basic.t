@@ -1,6 +1,6 @@
 #!perl
 use strict;
-use Test::More tests => 97;
+use Test::More tests => 98;
 
 require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
@@ -300,6 +300,17 @@ is($dec_bopp->string,"-47:25:27.5","Hale-Bopp Dec");
 my $s = $c->status;
 my @s = split /\n/,$s;
 print join("\n", map { "# $_" } @s),"\n";
+
+# and create a new elements object from the HaleBopp version
+my $newbopp = new Astro::Coords( elements => [ $c->array ] );
+if ($newbopp) {
+  $newbopp->datetime( $c->datetime );
+  $newbopp->telescope( $c->telescope );
+  is( $c->az, $newbopp->az,
+      "compare Azimuth from two (supposedly) identical elements");
+} else {
+  ok(0, "Failed to create clone of elements object");
+}
 
 exit;
 

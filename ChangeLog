@@ -1,5 +1,20 @@
 2005-03-16  Tim Jenness  <timj@jach.hawaii.edu>
 
+	* t/basic.t: Test the array Elements constructor
+
+	* lib/Astro/Coords.pm (new): Document upgrade to elements
+	interface to accept array() and enhance the test for that case.
+
+	* lib/Astro/Coords/Elements.pm (new): Now allow the return value
+	from the array() method to be provided to the constructor.
+	
+	* lib/Astro/Coords/Elements.pm (array): For comets, now return the
+	epoch of perihelion as the final member of the array and the epoch
+	of elements as the initial element in the array. This allows both
+	epochs to be retained without confusion (since the penultimate
+	member will be undefined for the cometary case) but constitutes a
+	change in the published interface.
+	
 	* lib/Astro/Coords/Elements.pm (apparent): Include the target name
 	in the error message when failing to perturb the elements.
 
