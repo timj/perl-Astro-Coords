@@ -4,7 +4,7 @@
 # Test using both DateTime and Time::Piece
 
 use strict;
-use Test::More tests => 23;
+use Test::More tests => 27;
 use Time::Piece qw/ :override /;
 use DateTime;
 
@@ -70,23 +70,25 @@ for my $date ($timepiece, $datetime) {
 #       Moonset                   07:46
 #       Moonrise                  21:13
 #       Moonset                   08:45 on following day
-# Moon does not quite work yet. I think this is because of the
-# accuracy of the SLA moon routine. Need to investigate using
-# the JPL ephemeris.
+# Moon does not quite work yet for rise and set
+# Problem is that we do not implement an iterative solution
+
 
   my $moon = new Astro::Coords( planet => 'moon');
   $moon->datetime( $date );
   $moon->telescope( $tel );
 
-  $mtime = $moon->meridian_time();
-  $rise = $moon->rise_time( horizon => Astro::Coords::MOON_RISE_SET );
+  $mtime = $moon->meridian_time(nearest=>1);
+  $rise = $moon->rise_time( horizon => Astro::Coords::MOON_RISE_SET,
+			    nearest=>1);
   $set  = $moon->set_time( horizon => Astro::Coords::MOON_RISE_SET );
 
   print "#  MOON\n";
-  print "# Meridian: ".localtime($mtime->epoch)." [cf. 02:05]\n";
-  print "# Rise time: ".localtime($rise->epoch)." [cf. 21:13]\n";
-  print "# Set time: ".localtime($set->epoch)." [cf. 07:46]\n";
-
+  print "# For local time ". localtime($moon->datetime->epoch) ."\n";
+  print "# Meridian: ".localtime($mtime->epoch)." [cf. Jul 15th 02:05]\n";
+  print "# Rise time: ".localtime($rise->epoch)." [cf. Jul 14th 21:13]\n";
+  print "# Set time: ".localtime($set->epoch)." [cf. Jul 15th 07:46]\n";
+  test_time( $mtime, [12,5], "Moon transit");
   print $moon->status;
 
 }
