@@ -121,18 +121,27 @@ sub new {
     if exists $args{lat};
 
   # Default values for parallax and proper motions
-  $args{parallax} = 0 unless exists $args{parallax};
-  $args{pm}       = [0,0] unless exists $args{pm};
+  my( $pm, $parallax );
+  if( exists( $args{parallax} ) ) {
+    $parallax = $args{parallax};
+  } else {
+    $parallax = 0;
+  }
+  if( exists( $args{pm} ) ) {
+    $pm = $args{pm};
+  } else {
+    $pm = [0,0];
+  }
 
   # Try to sort out what we have been given. We need to convert
   # everything to FK5 J2000
   croak "Proper motions are supplied but not as a ref to array"
-    unless ref($args{pm}) eq 'ARRAY';
+    unless ref($pm) eq 'ARRAY';
 
   # Extract the proper motions into convenience variables
-  my $pm1 = $args{pm}->[0];
-  my $pm2 = $args{pm}->[1];
-
+  my $pm1 = $pm->[0];
+  my $pm2 = $pm->[1];
+print "pm1: $pm1\npm2: $pm2\n";
   my ($ra, $dec);
 
   if ($args{type} =~ /^j([0-9\.]+)/i) {
@@ -159,12 +168,12 @@ sub new {
 # Wind the RA/Dec to epoch 2000.0 if the epoch isn't 2000.0,
 # taking the proper motion and parallax into account.
     if( $epoch != 2000 &&
-        ( $pm1 != 0 || $pm2 != 0 || $args{parallax} != 0 ) ) {
+        ( $pm1 != 0 || $pm2 != 0 || $parallax != 0 ) ) {
       my ( $ra0, $dec0 );
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
-                         $args{parallax},
+                         $parallax,
                          0.0, # radial velocity
                          $epoch,
                          2000.0,
@@ -193,11 +202,11 @@ sub new {
     my ( $ra0, $dec0 );
 
 # For the implementation details, see section 4.1 of SUN/67.
-    if( $pm1 != 0 || $pm2 != 0 || $args{parallax} != 0 ) {
+    if( $pm1 != 0 || $pm2 != 0 || $parallax != 0 ) {
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
-                         $args{parallax},
+                         $parallax,
                          0.0,
                          $epoch,
                          2000.0,
@@ -288,6 +297,13 @@ sub ra {
   my @pm = $self->pm;
   my $par = $self->parallax;
 
+  if( !scalar( @pm ) ) {
+    @pm = qw/ 0 0 /;
+  }
+  if( !defined( $par ) ) {
+    $par = 0;
+  }
+
   my $ra;
   $ra = $self->ra2000();
 
@@ -351,6 +367,9 @@ sub dec {
   # must be more efficient than going through apparent 
   my @pm = $self->pm;
   my $par = $self->parallax;
+
+  if( !scalar(@pm) ) { @pm = qw/ 0 0 /; }
+  if( !defined($par) ) { $par = 0; }
 
   my $dec = $self->dec2000();
   if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
@@ -502,6 +521,7 @@ sub pm {
     }
     $self->{pm} = [ $pm1, $pm2 ];
   }
+  if( !defined( $self->{pm} ) ) { $self->{pm} = []; }
   return @{ $self->{pm} };
 }
 
@@ -692,9 +712,21 @@ sub _apparent {
   my $par = $self->parallax;
   my @pm = $self->pm;
 
+  my ( $pm1, $pm2 );
+  if( !scalar(@pm) ) {
+    $pm1 = 0;
+    $pm2 = 0;
+  } else {
+    $pm1 = $pm[0];
+    $pm2 = $pm[1];
+  }
+  if( !defined( $par ) ) {
+    $par = 0;
+  }
+
   Astro::SLA::slaMap( $ra, $dec,
-		      Astro::SLA::DAS2R * $pm[0],
-		      Astro::SLA::DAS2R * $pm[1], $par, 0.0, 2000.0, $mjd,
+		      Astro::SLA::DAS2R * $pm1,
+		      Astro::SLA::DAS2R * $pm2, $par, 0.0, 2000.0, $mjd,
 		      my $ra_app, my $dec_app);
 
   # Convert from observed to apparent place
