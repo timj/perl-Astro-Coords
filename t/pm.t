@@ -49,6 +49,7 @@ my $c = new Astro::Coords( name => "target",
                            pm => [ (-0.0312 * &Astro::SLA::DS2R * &Astro::SLA::DR2AS), 0.103 ],
                            parallax => 0.062,
                            units => 's',
+			   rv => -34.22,
                          );
 
 # epoch of observation is J1994.35
