@@ -79,6 +79,18 @@ sub array {
   return ($self->type,undef,undef,undef,undef,undef,undef,undef,undef,undef,undef);
 }
 
+=item B<isObservable>
+
+Determines whether the observation is observable. Since a calibration
+observation (defined as an observation that does not move the telescope)
+is always observable this methods always returns true.
+
+=cut
+
+sub isObservable {
+  return 1;
+}
+
 =item B<stringify>
 
 Returns stringified summary of the object. Always returns the

@@ -1,7 +1,7 @@
 use strict;
 use Test;
 
-BEGIN { plan tests => 51 }
+BEGIN { plan tests => 61 }
 
 use Astro::Coords;
 use Astro::Telescope;
@@ -19,6 +19,7 @@ ok("-0:23:35.76", $c->dec(format=>'s'));
 
 # Set telescope
 my $tel = new Astro::Telescope('JCMT');
+my $ukirt = new Astro::Telescope('UKIRT');
 
 # Date/Time
 # Something we know
@@ -39,6 +40,12 @@ my @result = ("RADEC",4.03660853577072,-0.00686380910209873,undef,
 my @summary = $c->array;
 test_array_elem(\@summary,\@result);
 
+# observability
+ok( $c->isObservable );
+
+# Change telescope and try again
+$c->telescope( $ukirt );
+ok( $c->isObservable );
 
 # Now for a planet
 $c = new Astro::Coords( planet => "mars" );
@@ -62,6 +69,9 @@ ok( int($c->dec_app(format=>"d")), -26);
 	      undef,undef);
 @summary = $c->array;
 test_array_elem(\@summary,\@result);
+
+# observability
+ok( $c->isObservable );
 
 
 # No tests for elements yet
@@ -91,11 +101,57 @@ ok( int($fc->dec_app(format=>"d")), -26);
 @summary = $fc->array;
 test_array_elem(\@summary,\@result);
 
+# observability
+ok( $fc->isObservable );
+
+
 # Calibration
 print "# CAL\n";
 my $cal = new Astro::Coords();
 
 ok( $cal->type, "CAL");
+
+# observability
+ok( $cal->isObservable );
+
+
+# Now come up with some coordinates that are not 
+# always observable
+
+print "# Observability\n";
+
+$c = new Astro::Coords( ra => "15:22:33.3",
+			dec => "-0:13:4.5",
+			type => "J2000");
+
+$c->telescope( $tel );
+$c->datetime( $date ); # approximately transit
+ok( $c->isObservable );
+
+# Change the date by 12 hours
+# Approx Fri Sep 14 14:57 2001
+my $ndate = gmtime(1000436215 + ( 12*3600) );
+$c->datetime( $ndate );
+ok(! $c->isObservable );
+
+# switch to UKIRT (shouldn't be observable either)
+$c->telescope( $ukirt );
+ok( ! $c->isObservable );
+
+# Now use coordinates which can be observed with JCMT
+# but not with UKIRT
+$c = new Astro::Coords( ra => "15:22:33.3",
+			dec => "72:13:4.5",
+			type => "J2000");
+
+$c->telescope( $tel );
+$c->datetime( $date );
+
+ok( $c->isObservable );
+$c->telescope( $ukirt );
+ok( !$c->isObservable );
+
+
 
 
 exit;

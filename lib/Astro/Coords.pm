@@ -52,6 +52,10 @@ Astro::Coords - Class for handling astronomical coordinates
   # Obtain full summary as an array
   @summary = $c->array;
 
+  # See if the target is observable for the current time
+  # and telescope
+  $obs = 1 if $c->isObservable;
+
   # Calculate distance to another coordinate (in radians)
   $distance = $c->distance( $c2 ); # not yet supported
 
@@ -361,6 +365,72 @@ sub pa {
   my $lat = ( defined $tel ? $tel->lat : 0.0);
   return $self->_cvt_fromrad(Astro::SLA::slaPa($ha, $dec, $lat), $opt{format});
 }
+
+=item B<isObservable>
+
+Determine whether the coordinates are accessible for the current
+time and telescope.
+
+  $isobs = $c->isObservable;
+
+Returns false if a telescope has not been specified (see
+the C<telescope> method) or if the specified telescope does not
+know its own limits.
+
+=cut
+
+sub isObservable {
+  my $self = shift;
+
+  # Get the telescope
+  my $tel = $self->telescope;
+  return 0 unless defined $tel;
+
+  # Get the limits hash
+  my %limits = $tel->limits;
+
+  if (exists $limits{type}) {
+
+    if ($limits{type} eq 'AZEL') {
+
+      # Get the current elevation of the source
+      my $el = $self->el;
+
+      if ($el > $limits{el}{min} and $el < $limits{el}{max}) {
+	return 1;
+      } else {
+	return 0;
+      }
+
+    } elsif ($limits{type} eq 'HADEC') {
+
+      # Get the current HA
+      my $ha = $self->ha;
+
+      if ( $ha > $limits{ha}{min} and $ha < $limits{ha}{max}) {
+	my $dec= $self->dec_app;
+
+	if ($dec > $limits{dec}{min} and $dec < $limits{dec}{max}) {
+	  return 1;
+	} else {
+	  return 0;
+	}
+
+      } else {
+	return 0;
+      }
+
+    } else {
+      # have no idea
+      return 0;
+    }
+
+  } else {
+    return 0;
+  }
+
+}
+
 
 =item B<array>
 
