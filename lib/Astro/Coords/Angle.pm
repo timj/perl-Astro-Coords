@@ -612,6 +612,9 @@ method.
 Warnings are issued if the string can not be parsed or the values are
 out of range.
 
+If the supplied angle is an Angle object itself, units are ignored and
+the value is extracted directly from the object.
+
 Returns C<undef> on error. Does not modify the internal state of the object.
 
 =cut
@@ -622,6 +625,12 @@ sub _cvt_torad {
   my $units = shift;
 
   return undef unless defined $input;
+
+  # do we have an object?
+  # and can it implement the radians() method?
+  if (UNIVERSAL::can( $input, 'radians')) {
+    return $input->radians;
+  }
 
   # Clean up the string
   $input =~ s/^\s+//g;
