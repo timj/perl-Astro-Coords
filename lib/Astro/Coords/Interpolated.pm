@@ -92,8 +92,8 @@ Apparent Right Ascension of first reference position.
 
   $ra = $c->ra1( %opts );
 
-Type of returned value is controlled with the same options
-as defined in C<Astro::Coords::Equatorial>.
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
 =cut
 
@@ -113,8 +113,8 @@ Apparent declination of first reference position.
 
   $dec = $c->dec1( format => "sexagesimal" );
 
-Type of returned value is controlled with the same options
-as defined in C<Astro::Coords::Equatorial>.
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
 =cut
 
@@ -137,12 +137,12 @@ sub mjd1 {
 
 =item B<ra2>
 
-Apparent Right Ascension of second reference position. Defaults to radians.
+Apparent Right Ascension of second reference position.
 
-  $ra = $c->ra2( %opts );
+  $ra = $c->ra2( format => 'rad' );
 
-Type of returned value is controlled with the same options
-as defined in C<Astro::Coords::Equatorial>.
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
 =cut
 
@@ -158,10 +158,12 @@ sub ra2 {
 
 =item B<dec2>
 
-Apparent declination of second reference position. Default
-is to return it in radians.
+Apparent declination of second reference position.
 
   $dec = $c->dec2( format => "sexagesimal" );
+
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
 =cut
 

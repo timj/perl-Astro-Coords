@@ -31,10 +31,18 @@ Astro::Coords - Class for handling astronomical coordinates
   $date = Time::Piece->strptime($string, $format);
   $c->datetime( $date );
 
+  # or use DateTime
+  $date = DateTime->from_epoch( epoch => $epoch, time_zone => 'UTC' );
+  $c->datetime( $date );
+
   # Return coordinates J2000, for the epoch stored in the datetime
   # object. This will work for all variants.
-  $ra = $c->ra();
-  $dec = $c->dec();
+  ($ra, $dec) = $c->radec();
+  $radians = $ra->radians;
+
+  # or individually
+  $ra = $c->ra();  # returns Astro::Coords::Angle::Hour object
+  $dec = $c->dec( format => 'deg' );
 
   # Return coordinates J2000, epoch 2000.0
   $ra = $c->ra2000();
@@ -42,10 +50,12 @@ Astro::Coords - Class for handling astronomical coordinates
 
   # Return coordinats apparent, reference epoch, from location
   # In sexagesimal format.
+  ($ra_app, $dec_app) = $c->apparent;
   $ra_app = $c->ra_app( format => 's');
   $dec_app = $c->dec_app( format => 's' );
 
   # Azimuth and elevation for reference epoch from observer location
+  ($az, $el) = $c->azel;
   my $az = $c->az;
   my $el = $c->el;
 
@@ -62,8 +72,15 @@ Astro::Coords - Class for handling astronomical coordinates
   # Calculate distance to another coordinate (in radians)
   $distance = $c->distance( $c2 );
 
-  # Calculate the set time of the source
-  $t = $c->set_time;
+  # Calculate the rise and set time of the source
+  $tr = $c->rise_time;
+  $ts = $c->set_time;
+
+  # transit elevation
+  $trans = $c->transit_el;
+
+  # transit time
+  $mtime = $c->meridian_time();
 
 
 =head1 DESCRIPTION
@@ -75,9 +92,11 @@ Can handle the following coordinate types:
   + Planets
   + Comets/Asteroids
   + Fixed locations in azimuth and elevations
+  + interpolated apparent coordinates
 
 For time dependent calculations a telescope location and reference
-time must be provided.
+time must be provided. See C<Astro::Telescope> and C<DateTime> for
+details on specifying location and reference epoch.
 
 =cut
 
@@ -455,10 +474,12 @@ sub azel {
 
 =item B<ra_app>
 
-Apparent RA for the current time. Arguments are similar to those
-specified for "dec_app".
+Apparent RA for the current time.
 
   $ra_app = $c->ra_app( format => "s" );
+
+See L<"NOTES"> for details on the supported format specifiers
+and default calling convention.
 
 =cut
 
@@ -473,10 +494,13 @@ sub ra_app {
 
 =item B<dec_app>
 
-Apparent Dec for the currently stored time. Arguments are similar to those
-specified for "dec".
+Apparent Dec for the currently stored time.
 
   $dec_app = $c->dec_app( format => "s" );
+
+See L<"NOTES"> for details on the supported format specifiers
+and default calling convention.
+
 
 =cut
 
@@ -498,6 +522,9 @@ as an C<Astro::Coords::Angle::Hour> object.
 By default the Hour Angle will be normalised to +/- 12h if an explicit
 format is specified.
 
+See L<"NOTES"> for details on the supported format specifiers
+and default calling convention.
+
 =cut
 
 # normalize key was supported but should its absence imply no normalization?
@@ -515,7 +542,8 @@ sub ha {
 =item B<az>
 
 Azimuth of the source for the currently stored time at the current
-telescope. Arguments are similar to those specified for "dec".
+telescope. See L<"NOTES"> for details on the supported format specifiers
+and default calling convention.
 
   $az = $c->az();
 
@@ -533,7 +561,8 @@ sub az {
 =item B<el>
 
 Elevation of the source for the currently stored time at the current
-telescope. Arguments are similar to those specified for "dec".
+telescope. See L<"NOTES"> for details on the supported format specifiers
+and default calling convention.
 
   $el = $c->el();
 
@@ -592,7 +621,8 @@ by a subclass this converts the apparent RA/Dec to J2000.
 
   $ra2000 = $c->ra( format => "s" );
 
-Calls the C<radec> method.
+Calls the C<radec> method. See L<"NOTES"> for details on the supported
+format specifiers and default calling convention.
 
 =cut
 
@@ -610,7 +640,8 @@ by a subclass this converts the apparrent RA/Dec to J2000.
 
   $dec2000 = $c->dec( format => "s" );
 
-Calls the C<radec> method.
+Calls the C<radec> method. See L<"NOTES"> for details on the supported
+format specifiers and default calling convention.
 
 =cut
 
@@ -623,8 +654,8 @@ sub dec {
 
 =item B<glong>
 
-Return Galactic longitude. Arguments are similar to those specified
-for "dec".
+Return Galactic longitude. See L<"NOTES"> for details on the supported
+format specifiers and default calling convention.
 
   $glong = $c->glong( format => "s" );
 
@@ -639,8 +670,9 @@ sub glong {
 
 =item B<glat>
 
-Return Galactic latitude. Arguments are similar to those specified
-for "dec".
+Return Galactic latitude. See L<"NOTES"> for details on the supported
+format specifiers and default calling convention.
+
 
   $glat = $c->glat( format => "s" );
 
@@ -655,8 +687,8 @@ sub glat {
 
 =item B<sglong>
 
-Return SuperGalactic longitude. Arguments are similar to those specified
-for "dec".
+Return SuperGalactic longitude. See L<"NOTES"> for details on the
+supported format specifiers and default calling convention.
 
   $sglong = $c->sglong( format => "s" );
 
@@ -671,8 +703,7 @@ sub sglong {
 
 =item B<sglat>
 
-Return SuperGalactic latitude. Arguments are similar to those specified
-for "dec".
+Return SuperGalactic latitude. See L<"NOTES"> for details on the supported format specifiers and default calling convention.
 
   $glat = $c->sglat( format => "s" );
 
@@ -687,8 +718,8 @@ sub sglat {
 
 =item B<ecllong>
 
-Return Ecliptic longitude. Arguments are similar to those specified
-for "dec".
+Return Ecliptic longitude. See L<"NOTES"> for details on the supported
+format specifiers and default calling convention.
 
   $eclong = $c->ecllong( format => "s" );
 
@@ -703,8 +734,8 @@ sub ecllong {
 
 =item B<ecllat>
 
-Return ecliptic latitude. Arguments are similar to those specified
-for "dec".
+Return ecliptic latitude. See L<"NOTES"> for details on the supported
+format specifiers and default calling convention.
 
   $eclat = $c->ecllat( format => "s" );
 
@@ -719,8 +750,8 @@ sub ecllat {
 
 =item B<glonglat>
 
-Calculate Galactic longitude and latitude. Position is calculated for the current
-ra/dec position (as returned by the C<radec> method).
+Calculate Galactic longitude and latitude. Position is calculated for
+the current ra/dec position (as returned by the C<radec> method).
 
  ($long, $lat) = $c->glonglat;
 
@@ -800,9 +831,11 @@ sub radec1950 {
 =item B<pa>
 
 Parallactic angle of the source for the currently stored time at the
-current telescope. Arguments are similar to those specified for "dec".
+current telescope. See L<"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
   $pa = $c->pa();
+  $padeg = $c->pa( format => 'deg' );
 
 If no telescope is defined the equator is used.
 
@@ -1037,7 +1070,8 @@ Returns an array of hashes. Each hash contains
   parang
   lst [always in radians]
 
-The angles are in the units specified (radians, degrees or sexagesimal).
+The angles are in the units specified (radians, degrees or sexagesimal). They
+will be Angle objects if no units are specified.
 
 Note that this method returns C<DateTime> objects if it was given C<DateTime>
 objects, else it returns C<Time::Piece> objects.
@@ -1047,23 +1081,21 @@ objects, else it returns C<Time::Piece> objects.
 sub calculate {
   my $self = shift;
 
-  my %opts = @_;
+  my %opt = @_;
 
-  croak "No start time specified" unless exists $opts{start};
-  croak "No end time specified" unless exists $opts{end};
-  croak "No time increment specified" unless exists $opts{inc};
+  croak "No start time specified" unless exists $opt{start};
+  croak "No end time specified" unless exists $opt{end};
+  croak "No time increment specified" unless exists $opt{inc};
 
   # Get the increment as an integer (DateTime::Duration or Time::Seconds)
-  my $inc = $opts{inc};
+  my $inc = $opt{inc};
   if (UNIVERSAL::can($inc, "seconds")) {
     $inc = $inc->seconds;
   }
   croak "Increment must be greater than zero" unless $inc > 0;
 
-  $opts{units} = 'rad' unless exists $opts{units};
-
   # Determine date class to use for calculations
-  my $dateclass = blessed( $opts{start} );
+  my $dateclass = blessed( $opt{start} );
   croak "Start time must be either Time::Piece or DateTime object"
     if (!$dateclass || 
 	($dateclass ne "Time::Piece" && $dateclass ne 'DateTime' ));
@@ -1072,9 +1104,9 @@ sub calculate {
 
   # Get a private copy of the date object for calculations
   # (copy constructor)
-  my $current = _clone_time( $opts{start} );
+  my $current = _clone_time( $opt{start} );
 
-  while ( $current->epoch <= $opts{end}->epoch ) {
+  while ( $current->epoch <= $opt{end}->epoch ) {
 
     # Hash for storing the data
     my %timestep;
@@ -1088,9 +1120,9 @@ sub calculate {
     $self->datetime( $current );
 
     # Now calculate the positions
-    $timestep{elevation} = $self->el( format => $opts{units} );
-    $timestep{azimuth} = $self->az( format => $opts{units} );
-    $timestep{parang} = $self->pa( format => $opts{units} );
+    $timestep{elevation} = $self->el( format => $opt{units} );
+    $timestep{azimuth} = $self->az( format => $opt{units} );
+    $timestep{parang} = $self->pa( format => $opt{units} );
     $timestep{lst}    = $self->_lst();
 
     # store the timestep
@@ -1134,17 +1166,17 @@ that never sets.
 
 sub rise_time {
   my $self = shift;
-  my %opts = @_;
+  my %opt = @_;
 
   # Calculate the HA required for setting
-  my $ha_set = $self->ha_set( %opts, format => 'radians' );
+  my $ha_set = $self->ha_set( %opt, format => 'radians' );
   return if ! defined $ha_set;
 
   # and convert to seconds
   $ha_set *= Astro::SLA::DR2S;
 
   # Calculate the transit time
-  my $mt = $self->meridian_time( nearest => $opts{nearest} );
+  my $mt = $self->meridian_time( nearest => $opt{nearest} );
 
   my $use_dt;
   if ($self->_isdt($mt) ) {
@@ -1167,7 +1199,7 @@ sub rise_time {
   $self->datetime( $rise );
 
   # Requested elevation
-  my $refel = (defined $opts{horizon} ? $opts{horizon} :
+  my $refel = (defined $opt{horizon} ? $opt{horizon} :
 		 $self->_default_horizon );
 
   # Verify convergence
@@ -1183,7 +1215,7 @@ sub rise_time {
 
   # If the rise time has already happened return undef
   # unless we are allowing earlier times
-  if (!$opts{nearest}) {
+  if (!$opt{nearest}) {
     # return the time only if we are in the future
     return $rise if (_cmp_time($rise, $self->datetime) >= 0);
   } else {
@@ -1207,11 +1239,12 @@ always return the next set time since that always follows a transit.
 Returns a C<Time::Piece> object or a C<DateTime> object depending on the
 type of object that is returned by the C<datetime> method.
 
-Note that whilst the set time returned by this method will always be in the future
-the calculation can be performed twice. This is because the set time is first
-calculated relative to the nearest meridian time (which may be in the past)
-and, if that set time is in the past, it is recalculated for the next transit
-(which is guaranteed to result in a set time in the future).
+Note that whilst the set time returned by this method will always be
+in the future the calculation can be performed twice. This is because
+the set time is first calculated relative to the nearest meridian time
+(which may be in the past) and, if that set time is in the past, it is
+recalculated for the next transit (which is guaranteed to result in a
+set time in the future).
 
 
 BUG: Does not distinguish a source that never rises from a source
@@ -1221,10 +1254,10 @@ that never sets.
 
 sub set_time {
   my $self = shift;
-  my %opts = @_;
+  my %opt = @_;
 
   # Calculate the HA required for setting
-  my $ha_set = $self->ha_set( %opts, format=> 'radians' );
+  my $ha_set = $self->ha_set( %opt, format=> 'radians' );
   return if ! defined $ha_set;
 
   # and convert to seconds
@@ -1242,7 +1275,7 @@ sub set_time {
   my $havetime = $self->has_datetime;
 
   # Need the requested horizon
-  my $refel = (defined $opts{horizon} ? $opts{horizon} :
+  my $refel = (defined $opt{horizon} ? $opt{horizon} :
 		 $self->_default_horizon );
 
   my $set;
@@ -1305,7 +1338,7 @@ an explicit "format" is specified.
 
 There are predefined elevations for events such as 
 Sun rise/set and Twilight (only relevant if your object
-refers to the Sun). See L<"Constants"> for more information.
+refers to the Sun). See L<"CONSTANTS"> for more information.
 
 Returns C<undef> if the target never reaches the specified horizon.
 (maybe it is circumpolar).
@@ -1408,7 +1441,7 @@ the "nearest" option set to true
 
 sub meridian_time {
   my $self = shift;
-  my %opts = @_;
+  my %opt = @_;
 
   # Get the current time (do not modify it since we need to put it back)
   my $reftime = $self->datetime;
@@ -1475,7 +1508,7 @@ sub meridian_time {
 
     # if we want to make sure we have the next transit, we need
     # to compare the calculated time with the reference time
-    if (!$opts{nearest}) {
+    if (!$opt{nearest}) {
 
       # Calculate the difference in epoch seconds before the current
       # object reference time and the calculate transit time.
@@ -1561,7 +1594,9 @@ sub _local_mtcalc {
 Elevation at transit. This is just the elevation at Hour Angle = 0.0.
 (ie at C<meridian_time>).
 
-Format is supported as for the C<el> method.
+Format is supported as for the C<el> method. See L<"NOTES"> for
+details on the supported format specifiers and default calling
+convention.
 
   $el = $c->transit_el( format => 'deg' );
 
@@ -1843,6 +1878,29 @@ sub _isdt {
 
 =end __PRIVATE_METHODS__
 
+=head1 NOTES
+
+Many of the methods described in these classes return results as
+either C<Astro::Coords::Angle> and C<Astro::Coords::Angle::Hour>
+objects. This provides to the caller much more control in how to
+represent the answer, especially when the default stringification may
+not be suitable.  Whilst methods such as C<radec> and C<apparent>
+always return objects, methods to return individual coordinate values
+such as C<ra>, C<dec>, and C<az> can return the result in a variety of
+formats. The default format is simply to return the underlying
+C<Angle> object but an explicit format can be specified if you are
+simply interested in the value in degrees, say, or are instantly
+stringifying it. The supported formats are all documented in the
+C<in_format> method documentation in the C<Astro::Coords::Angle> man
+page but include all the standard options that have been available in
+early versions of C<Astro::Coords>: 'sexagesimal', 'radians',
+'degrees'.
+
+  $radians = $c->ra( format => 'rad' );
+  $string  = $c->ra( format => 'sex' );
+  $deg     = $c->ra( format => 'deg' );
+  $object  = $c->ra();
+
 =head1 CONSTANTS
 
 In some cases when calculating events such as sunrise, sunset or
@@ -1869,6 +1927,19 @@ is specified (ie SUN_RISE_SET is used for the Sun).
 =head1 REQUIREMENTS
 
 C<Astro::SLA> is used for all internal astrometric calculations.
+
+=head1 SEE ALSO
+
+L<Astro::Telescope> and L<DateTime> are used to specify observer
+location and reference epoch respectively.
+
+L<Astro::Coords::Equatorial>,
+L<Astro::Coords::Planet>,
+L<Astro::Coords::Fixed>,
+L<Astro::Coords::Interpolated>,
+L<Astro::Coords::Calibration>,
+L<Astro::Coords::Angle>,
+L<Astro::Coords::Angle::Hour>.
 
 =head1 AUTHOR
 

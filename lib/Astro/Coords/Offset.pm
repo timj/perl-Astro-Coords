@@ -232,6 +232,8 @@ sub tracking_system {
   return $self->{TRACKING_SYSTEM};
 }
 
+=back
+
 =head1 SEE ALSO
 
 The allowed offset types are designed to match the specification used

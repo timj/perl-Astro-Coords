@@ -344,6 +344,9 @@ in the object.
 For J2000 coordinates without proper motions or parallax, this will
 return the same values as returned from the C<ra2000> method.
 
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
+
 =cut
 
 sub ra {
@@ -367,6 +370,9 @@ in the object.
 
 For J2000 coordinates without proper motions or parallax, this will
 return the same values as returned from the C<dec2000> method.
+
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
 =cut
 
@@ -408,21 +414,8 @@ This method is only available to the Equatorial class.
 
   $ra = $c->ra2000( format => "s" );
 
-The optional hash arguments can have the following keys:
-
-=over 4
-
-=item format
-
-The required formatting for the right ascension:
-
-  radians     - (the default)
-  degrees     - decimal
-  sexagesimal - a string (hours/minutes/seconds)
-  hours       - decimal hours
-  array       - a ref to an array containing hour/min/sec
-
-=back
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
 =cut
 
@@ -448,20 +441,8 @@ The coordinates returned by this method are B<not> adjusted for proper
 motion or parallax. Use the C<dec> method if you want J2000, reference epoch.
 This method is only available to the Equatorial class.
 
-The optional hash arguments can have the following keys:
-
-=over 4
-
-=item format
-
-The required formatting for the declination:
-
-  radians     - (the default)
-  degrees     - decimal
-  sexagesimal - a string (degrees/minutes/seconds)
-  array       - a ref to an array containing sign/degrees/min/sec
-
-=back
+See L<Astro::Coords/"NOTES"> for details on the supported format
+specifiers and default calling convention.
 
 =cut
 
