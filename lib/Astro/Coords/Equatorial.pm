@@ -297,12 +297,9 @@ sub ra {
   my @pm = $self->pm;
   my $par = $self->parallax;
 
-  if( !scalar( @pm ) ) {
-    @pm = qw/ 0 0 /;
-  }
-  if( !defined( $par ) ) {
-    $par = 0;
-  }
+  # Fix PM array and parallax if none-defined
+  @pm = (0,0) unless @pm;
+  $par = 0 unless defined $par;
 
   my $ra;
   $ra = $self->ra2000();
@@ -368,8 +365,9 @@ sub dec {
   my @pm = $self->pm;
   my $par = $self->parallax;
 
-  if( !scalar(@pm) ) { @pm = qw/ 0 0 /; }
-  if( !defined($par) ) { $par = 0; }
+  # Fix PM array and parallax if none-defined
+  @pm = (0,0) unless @pm;
+  $par = 0 unless defined $par;
 
   my $dec = $self->dec2000();
   if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
@@ -714,17 +712,8 @@ sub _apparent {
   my $par = $self->parallax;
   my @pm = $self->pm;
 
-  my ( $pm1, $pm2 );
-  if( !scalar(@pm) ) {
-    $pm1 = 0;
-    $pm2 = 0;
-  } else {
-    $pm1 = $pm[0];
-    $pm2 = $pm[1];
-  }
-  if( !defined( $par ) ) {
-    $par = 0;
-  }
+  my ($pm1, $pm2) = (@pm ? @pm : (0,0));
+  $par = 0.0 unless defined $par;
 
   Astro::SLA::slaMap( $ra, $dec,
 		      Astro::SLA::DAS2R * $pm1,
