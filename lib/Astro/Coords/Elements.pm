@@ -117,7 +117,7 @@ sub new {
 
     # if we are missing one of the EPOCHs that is okay
     # so just skip
-    if (!$epoch) {
+    if (! defined $epoch) {
       # and delete it from the hash as if it was never supplied
       # this avoids complications later
       delete $opts{elements}->{$key};
