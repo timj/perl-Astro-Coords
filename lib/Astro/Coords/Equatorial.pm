@@ -12,17 +12,32 @@ Astro::Coords::Equatorial - Manipulate equatorial coordinates
 				      type => 'B1950'
 				      units=> 'sexagesimal');
 
+  $c = new Astro::Coords::Equatorial( name => 'Vega',
+                                      ra => ,
+                                      dec => ,
+                                      type => 'J2000',
+                                      units => 'sex',
+                                      pm => [ 0.202, 0.286],
+                                      parallax => 0.13,
+                                      );
+
 
 =head1 DESCRIPTION
 
 This class is used by C<Astro::Coords> for handling coordinates
 specified in a fixed astronomical coordinate frame.
 
+If proper motions and parallax information are supplied with a
+coordinate it is assumed that the RA/Dec supplied is correct
+for the relevant equinox (ie EPOCH = EQUINOX). It is currently
+not possible to supply coordinates at an alternative epoch.
+
 =cut
 
 use 5.006;
 use strict;
 use warnings;
+use Carp;
 
 our $VERSION = '0.02';
 
@@ -47,6 +62,8 @@ Instantiate a new object using the supplied options.
                           dec =>
 			  long =>
 			  lat =>
+                          pm =>
+                          parallax =>
 			  type =>
 			  units =>
                          );
@@ -59,10 +76,18 @@ strings), "degrees" or "radians". The default is determined from
 context. The name is just a string you can associate with the sky
 position.
 
-All coordinates are converted to FK5 J2000.
+All coordinates are converted to FK5 J2000 [epoch 2000.0] internally.
 
-Currently the FK4 1950 to FK5 J2000 assumes no parallax or
-proper motion correction.
+Units of parallax are arcsec. Units of proper motion are arcsec/year
+(no correction for declination; tropical year for B1950, Julian year
+for J2000).  If proper motions are supplied they must both be supplied
+in a reference to an array:
+
+  pm => [ 0.13, 0.45 ],
+
+If parallax and proper motions are given, the ra/dec coordinates
+are assumed to be correct for the specified EQUINOX (Epoch = 2000.0
+for J2000, epoch = 1950.0 for B1950).
 
 Usually called via C<Astro::Coords>.
 
@@ -89,8 +114,18 @@ sub new {
   $args{lat} = $class->_cvt_torad($args{units}, $args{lat}, 0)
     if exists $args{lat};
 
+  # Default values for parallax and proper motions
+  $args{parallax} = 0 unless exists $args{parallax};
+  $args{pm}       = [0,0] unless exists $args{pm};
+
   # Try to sort out what we have been given. We need to convert
   # everything to FK5 J2000
+  croak "Proper motions are supplied but not as a ref to array"
+    unless ref($args{pm}) eq 'ARRAY';
+
+  # Extract the proper motions into convenience variables
+  my $pm1 = $args{pm}->[0];
+  my $pm2 = $args{pm}->[1];
 
   my ($ra, $dec);
   if ($args{type} eq "J2000") {
@@ -105,7 +140,26 @@ sub new {
     return undef unless exists $args{ra} and exists $args{dec};
     return undef unless defined $args{ra} and defined $args{dec};
 
-    Astro::SLA::slaFk45z( $args{ra}, $args{dec}, 1950.0, $ra, $dec);
+    # if we have non-zero P.M. or parallax we need to do the complicated
+    # thing
+    if ($pm1 != 0 || $pm2 != 0 || $args{parallax} != 0) {
+      Astro::SLA::slaFk425($args{ra}, $args{dec},
+			   Astro::SLA::DAS2R * $pm1,
+			   Astro::SLA::DAS2R * $pm2,
+			   $args{parallax},
+			   0.0, # Radial Velocity 0 km/s
+			   $ra, $dec, $pm1, $pm2, $args{parallax},
+			   my $vel
+			  );
+
+      # convert proper motions back to arcsec/year
+      $args{pm}->[0] = Astro::SLA::DR2AS * $pm1;
+      $args{pm}->[1] = Astro::SLA::DR2AS * $pm2;
+
+    } else {
+      # simple approach
+      Astro::SLA::slaFk45z( $args{ra}, $args{dec}, 1950.0, $ra, $dec);
+    }
 
   } elsif ($args{type} eq "GALACTIC") {
     return undef unless exists $args{long} and exists $args{lat};
@@ -120,10 +174,15 @@ sub new {
     Astro::SLA::slaSupgal( $args{long}, $args{lat}, my $glong, my $glat);
     Astro::SLA::slaGaleq( $glong, $glat, $ra, $dec);
 
+  } else {
+    my $type = (defined $args{type} ? $args{type} : "<undef>");
+    croak "Supplied coordinate type [$type] not recognized";
   }
 
   # Now the actual object
-  bless { ra2000 => $ra, dec2000 => $dec, name => $args{name} }, $class;
+  bless { ra2000 => $ra, dec2000 => $dec, name => $args{name},
+	  pm => $args{pm}, parallax => $args{parallax}
+	}, $class;
 
 
 }
@@ -138,7 +197,14 @@ sub new {
 =item B<ra>
 
 Retrieve the Right Ascension (FK5 J2000). Default
-is to return it in radians. 
+is to return it in radians.
+
+The coordinates returned by this method are B<not> adjusted for proper
+motion or parallax. This may be a bug. [The problem is that the
+apprent RA/Dec method calls this method and this method would have to
+call the apparent RA/Dec method to calculate the new coordinate -
+there needs to be a way of getting the raw R.A. as well as the
+corrected R.A.
 
 The optional hash arguments can have the following keys:
 
@@ -203,6 +269,52 @@ sub dec {
   return $self->_cvt_fromrad( $self->{dec2000}, $opt{format});
 }
 
+
+=item B<parallax>
+
+Retrieve (or set) the parallax of the target. Units should be
+given in arcseconds. Default is 0 arcsec.
+
+  $par = $c->parallax();
+  $c->parallax( 0.13 );
+
+=cut
+
+sub parallax {
+  my $self = shift;
+  if (@_) {
+    $self->{parallax} = shift;
+  }
+  return $self->{parallax};
+}
+
+=item B<pm>
+
+Proper motions in units of arcsec / Julian year (not corrected for
+declination).
+
+  @pm = $self->pm();
+  $self->pm( $pm1, $pm2);
+
+=cut
+
+sub pm {
+  my $self = shift;
+  if (@_) {
+    my $pm1 = shift;
+    my $pm2 = shift;
+    if (!defined $pm1) {
+      warnings::warnif("Proper motion 1 not defined. Using 0.0 arcsec/year");
+      $pm1 = 0.0;
+    }
+    if (!defined $pm2) {
+      warnings::warnif("Proper motion 2 not defined. Using 0.0 arcsec/year");
+      $pm2 = 0.0;
+    }
+    $self->{pm} = [ $pm1, $pm2 ];
+  }
+  return @{ $self->{pm} };
+}
 
 =back
 
@@ -387,9 +499,21 @@ sub _apparent {
   my $self = shift;
   my $ra = $self->ra;
   my $dec = $self->dec;
-  my $mjd = $self->datetime->mjd;
-  Astro::SLA::slaMap( $ra, $dec, 0.0, 0.0, 0.0, 0.0, 2000.0, $mjd,
+  my $mjd = $self->_mjd_tt;
+  my $par = $self->parallax;
+  my @pm = $self->pm;
+
+  Astro::SLA::slaMap( $ra, $dec,
+		      Astro::SLA::DAS2R * $pm[0],
+		      Astro::SLA::DAS2R * $pm[1], $par, 0.0, 2000.0, $mjd,
 		      my $ra_app, my $dec_app);
+
+  # Convert from observed to apparent place
+#  Astro::SLA::slaOap("r", $ra_app, $dec_app, $mjd, 0.0, $long, $lat,
+#                     0.0,0.0,0.0,
+#                     0.0,0.0,0.0,0.0,0.0,$ra, $dec);
+
+
   return ($ra_app, $dec_app);
 }
 
