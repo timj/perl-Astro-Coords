@@ -148,7 +148,7 @@ sub _apparent {
   my $long = (defined $tel ? $tel->long : 0.0 );
   my $lat = (defined $tel ? $tel->lat : 0.0 );
 
-  Astro::SLA::slaRdplan($self->datetime->mjd, $PLANET{$self->planet},
+  Astro::SLA::slaRdplan($self->_mjd_tt, $PLANET{$self->planet},
 			$long, $lat, my $ra, my $dec, my $diam);
   return($ra, $dec);
 }

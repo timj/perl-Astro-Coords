@@ -8,7 +8,8 @@ Astro::Coords - Class for handling astronomical coordinates
 
   use Astro::Coords;
 
-  $c = new Astro::Coords( ra   => '05:22:56',
+  $c = new Astro::Coords( name => "My target",
+                          ra   => '05:22:56',
                           dec  => '-26:20:40.4',
                           type => 'B1950'
                           units=> 'sexagesimal');
@@ -75,12 +76,13 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use Astro::SLA ();
 use Astro::Coords::Equatorial;
 use Astro::Coords::Elements;
 use Astro::Coords::Planet;
+use Astro::Coords::Interpolated;
 use Astro::Coords::Fixed;
 use Astro::Coords::Calibration;
 
@@ -185,6 +187,10 @@ sub new {
 
       $obj = new Astro::Coords::Elements( elements => $args{elements} );
 
+    } elsif (exists $args{mjd1}) {
+
+      $obj = new Astro::Coords::Interpolated( %args );
+
     } elsif (exists $args{type} and defined $args{type}) {
 
       $obj = new Astro::Coords::Equatorial( %args );
@@ -214,6 +220,19 @@ sub new {
 
 =over 4
 
+=item B<name>
+
+Name of the target associated with the coordinates.
+
+=cut
+
+sub name {
+  my $self = shift;
+  if (@_) {
+    $self->{Name} = shift;
+  }
+  return $self->{Name};
+}
 
 =item B<telescope>
 
@@ -742,6 +761,20 @@ sub _cvt_torad {
   }
 
   return $output;
+}
+
+=item B<_mjd_tt>
+
+Retrieve the MJD in TT (Terrestrial time) rather than UTC time.
+
+=cut
+
+sub _mjd_tt {
+  my $self = shift;
+  my $mjd = $self->datetime->mjd;
+  my $offset = Astro::SLA::slaDtt( $mjd );
+  $mjd += ($offset / (60*60*24));
+  return $mjd;
 }
 
 =back

@@ -1,4 +1,5 @@
 Makefile.PL
+ChangeLog
 MANIFEST
 README
 t/basic.t

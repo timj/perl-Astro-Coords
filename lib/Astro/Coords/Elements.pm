@@ -24,6 +24,8 @@ our $VERSION = '0.01';
 
 # Need working slaPlante
 use Astro::SLA 0.95 ();
+use Time::Piece qw/ :override /;
+
 use base qw/ Astro::Coords /;
 
 use overload '""' => "stringify";
@@ -81,6 +83,10 @@ suitable for comets:
 See the documentation to slaPlante() for more information.
 Keys must be upper case.
 
+In order to better match normal usage, EPOCH can also be specified
+as a string of the form 'YYYY mmm D.frac' (e.g. '1997 Apr 1.567').
+(no decimal place after the month).
+
 =cut
 
 sub new {
@@ -94,6 +100,32 @@ sub new {
   # Sanity check
   for (qw/ EPOCH ORBINC ANODE PERIH AORQ E/) {
     return undef unless exists $opts{elements}->{$_};
+  }
+
+  # Fix up EPOCH if it has been specified as a string
+  my $epoch = $opts{elements}->{EPOCH};
+  if ($epoch =~ /^\d+\.\d+$/) {
+    # an MJD so do not modify
+  } elsif ($epoch =~ /\d\d\d\d \w\w\w \d+\.\d+/) {
+    # has letters in it so try to parse
+    # Split on decimal point
+    my ($date, $frac) = split(/\./,$epoch,2);
+    $frac = "0.". $frac; # preserve as decimal fraction
+    my $format = '%Y %B %d';
+    print "EPOCH : $epoch and $date and $frac\n";
+    my $obj = Time::Piece->strptime($date, $format);
+    my $tzoffset = $obj->tzoffset;
+    $obj = gmtime($obj->epoch() + $tzoffset);
+
+    # get the MJD and add on the fraction
+    my $mjd = $obj->mjd() + $frac;
+    $opts{elements}->{EPOCH} = $mjd;
+    print "MJD: $mjd\n";
+
+  } else {
+    # do not understand the format so return undef
+    warn "Unable to recognize format for elements epoch [$epoch]";
+    return undef;
   }
 
 
@@ -208,7 +240,15 @@ sub _apparent {
     $el{AORL} = 0;
   }
 
-  Astro::SLA::slaPlante($self->datetime->mjd, $long, $lat, $jform,
+  # Print out the values
+  #print "EPOCH:  $el{EPOCH}\n";
+  #print "ORBINC: ". ($el{ORBINC}*Astro::SLA::DR2D) . "\n";
+  #print "ANODE:  ". ($el{ANODE}*Astro::SLA::DR2D) . "\n";
+  #print "PERIH : ". ($el{PERIH}*Astro::SLA::DR2D) . "\n";
+  #print "AORQ:   $el{AORQ}\n";
+  #print "E:      $el{E}\n";
+
+  Astro::SLA::slaPlante($self->_mjd_tt, $long, $lat, $jform,
 			$el{EPOCH}, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
 			$el{AORQ}, $el{E}, $el{AORL}, $el{DM}, 
 			my $ra, my $dec, my $dist, my $j);
@@ -222,6 +262,11 @@ sub _apparent {
 =head1 NOTES
 
 Usually called via C<Astro::Coords>.
+
+=head1 LINKS
+
+Useful sources of orbital elements can be found at
+http://ssd.jpl.nasa.gov and http://cfa-www.harvard.edu/iau/Ephemerides/
 
 =head1 REQUIREMENTS
 

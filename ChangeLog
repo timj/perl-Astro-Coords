@@ -1,0 +1,14 @@
+2002-08-03  Tim Jenness  <t.jenness@jach.hawaii.edu>
+
+	* t/basic.t: Test now works for orbital elements
+
+	* lib/Astro/Coords/Elements.pm (new): Now support '1999 Apr 1.445' 
+	format for Epoch
+
+	* lib/Astro/Coords.pm (new): Add support for Interpolated coordinates
+
+	* lib/Astro/Coords/Interpolated.pm: Create
+
+	* lib/Astro/Coords.pm: Add name accessor method
+
+
