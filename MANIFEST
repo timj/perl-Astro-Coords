@@ -15,3 +15,4 @@ lib/Astro/Coords/Elements.pm
 lib/Astro/Coords/Fixed.pm
 lib/Astro/Coords/Calibration.pm
 lib/Astro/Coords/Interpolated.pm
+lib/Astro/Coords/Offset.pm
