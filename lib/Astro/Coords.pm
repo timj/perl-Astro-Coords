@@ -843,8 +843,7 @@ sub radec2000 {
   my $self = shift;
 
   # store current configuration
-  my $reftime = $self->datetime;
-  my $havedt = $self->has_datetime;
+  my $reftime = ( $self->has_datetime ? $self->datetime : undef);
 
   # Create new time
   $self->datetime( DateTime->new( year => 2000, month => 1,
@@ -854,7 +853,7 @@ sub radec2000 {
   my ($ra, $dec) = $self->radec( 'J2000' );
 
   # restore the date state
-  $self->datetime( ( $havedt ? $reftime : undef ) );
+  $self->datetime( $reftime );
 
   return ($ra, $dec);
 }
@@ -1203,186 +1202,86 @@ sub calculate {
 
 =item B<rise_time>
 
-Next time the target will appear above the horizon (starting from the
-time stored in C<datetime>). By default returns undef if the target is
-already up (as determined by looking at the current date value),
-specifying the "nearest" option to the hash will allow rise times that
-have already occurred. An optional argument can be given (as a hash
-with key "horizon") specifying a different elevation to the horizon
-(in radians).
+Time at which the target will appear above the horizon. By default the calculation is for the next rise time relative to the current reference time. 
+If
+the "event" key is used, this can control which rise time will be
+returned. For event=1, this indicates the following rise (the default),
+event=-1 indicates a previous rise and event=0 indicates the nearest
+source rising to the current reference time.
 
-  $t = $c->rise_time();
-  $t = $c->rise_time( horizon => $el );
+If the "nearest" key is set in the argument hash, this is synonymous
+with event=0 and supercedes the event key.
 
-  $t = $c->rise_time( nearest => (1 * Astro::SLA::DD2R) );
+Returns C<undef> if the target is never visible or never sets. An
+optional argument can be given specifying a different elevation to the
+horizon (in radians).
 
-An iterative algorithm is used to ensure that the time returned
-by this routine does correspond to the elevation requested for the horizon.
-This is required for non-sidereal objects, especially the Sun and Moon.
+  $t = $c->set_time();
+  $t = $c->set_time( horizon => $el );
+  $t = $c->set_time( nearest => 1 );
+  $t = $c->set_time( event => -1 );
 
 Returns a C<Time::Piece> object or a C<DateTime> object depending on the
 type of object that is returned by the C<datetime> method.
 
-BUG: Does not distinguish a source that never rises from a source
-that never sets.
+For some occasions the calculation will be performed twice, once for
+the meridian transit before the reference time and once for the
+transit after the reference time.
+
+Does not distinguish a source that never rises from a source that
+never sets. Both will return undef for the rise time.
+
+Next and previous depend on the adjacent transits. The routine will
+not step forward multiple days looking for a rise time if the source is
+not going to rise before the next or previous transit.
 
 =cut
 
 sub rise_time {
   my $self = shift;
-  my %opt = @_;
-
-  # Calculate the HA required for setting
-  my $ha_set = $self->ha_set( %opt, format => 'radians' );
-  return if ! defined $ha_set;
-
-  # and convert to seconds
-  $ha_set *= Astro::SLA::DR2S;
-
-  # Calculate the transit time
-  my $mt = $self->meridian_time( nearest => $opt{nearest} );
-
-  my $use_dt;
-  if ($self->_isdt($mt) ) {
-    $ha_set = new DateTime::Duration( seconds => $ha_set );
-  }
-
-  # Calculate rise time by subtracting the hour angle
-  # This is an estimate for non sidereal sources
-  # For non-sidereal sources we need to use this as a starting
-  # point for iteration
-  my $rise = $mt - $ha_set;
-
-  # Get the current time (do not modify it since we need to put it back)
-  my $reftime = $self->datetime;
-
-  # Determine whether we have to remember the cache
-  my $havetime = $self->has_datetime;
-
-  # Store the rise time
-  $self->datetime( $rise );
-
-  # Requested elevation
-  my $refel = (defined $opt{horizon} ? $opt{horizon} :
-		 $self->_default_horizon );
-
-  # Verify convergence
-  my $convok = $self->_iterative_el( $refel, 1 );
-  return undef unless $convok;
-  $rise = $self->datetime;
-
-  # Reset the clock
-  if ($havetime) {
-    $self->datetime( $reftime );
-  } else {
-    $self->datetime( undef );
-  }
-
-  # If the rise time has already happened return undef
-  # unless we are allowing earlier times
-  if (!$opt{nearest}) {
-    # return the time only if we are in the future
-    return $rise if (_cmp_time($rise, $self->datetime) >= 0);
-  } else {
-    return $rise;
-  }
-  return;
+  return $self->_rise_set_time( 1, @_);
 }
 
 =item B<set_time>
 
-Time at which the target will set below the horizon.  (starting from
-the time stored in C<datetime>). Returns C<undef> if the target is
-never visible. An optional argument can be given specifying a
-different elevation to the horizon (in radians). Since
-C<meridian_time> is guaranteed to be in the future, this method should
-always return the next set time since that always follows a transit.
+Time at which the target will set below the horizon. By default the
+calculation is the next set time from the current reference time. If
+the "event" key is used, this can control which set time will be
+returned. For event=1, this indicates the following set (the default),
+event=-1 indicates a previous set and event=0 indicates the nearest
+source setting to the current reference time.
+
+If the "nearest" key is set in the argument hash, this is synonymous
+with event=0 and supercedes the event key.
+
+Returns C<undef> if the target is never visible or never sets. An
+optional argument can be given specifying a different elevation to the
+horizon (in radians).
 
   $t = $c->set_time();
   $t = $c->set_time( horizon => $el );
+  $t = $c->set_time( nearest => 1 );
+  $t = $c->set_time( event => -1 );
 
 Returns a C<Time::Piece> object or a C<DateTime> object depending on the
 type of object that is returned by the C<datetime> method.
 
-Note that whilst the set time returned by this method will always be
-in the future the calculation can be performed twice. This is because
-the set time is first calculated relative to the nearest meridian time
-(which may be in the past) and, if that set time is in the past, it is
-recalculated for the next transit (which is guaranteed to result in a
-set time in the future).
+For some occasions the calculation will be performed twice, once for
+the meridian transit before the reference time and once for the
+transit after the reference time.
 
+Does not distinguish a source that never rises from a source that
+never sets. Both will return undef for the set time.
 
-BUG: Does not distinguish a source that never rises from a source
-that never sets.
+Next and previous depend on the adjacent transits. The routine will
+not step forward multiple days looking for a set time if the source is
+not going to set following the next or previous transit.
 
 =cut
 
 sub set_time {
   my $self = shift;
-  my %opt = @_;
-
-  # Calculate the HA required for setting
-  my $ha_set = $self->ha_set( %opt, format=> 'radians' );
-  return if ! defined $ha_set;
-
-  # and convert to seconds
-  $ha_set *= Astro::SLA::DR2S;
-
-  # and thence to a duration if required
-  if ($self->_isdt()) {
-    $ha_set = new DateTime::Duration( seconds => $ha_set );
-  }
-
-  # Get the current time (do not modify it since we need to put it back)
-  my $reftime = $self->datetime;
-
-  # Determine whether we have to remember the cache
-  my $havetime = $self->has_datetime;
-
-  # Need the requested horizon
-  my $refel = (defined $opt{horizon} ? $opt{horizon} :
-		 $self->_default_horizon );
-
-  my $set;
-  # Calculate first for nearest meridian and then for
-  # next meridian. We want the set time to be in our future.
-  # $n indicates whether we are requesting the nearest meridian
-  # time or simply the one in the future.
-  for my $n (1, 0) {
-    # Calculate the transit time
-    my $mt = $self->meridian_time( nearest => $n );
-
-    $set = $mt + $ha_set;
-
-    # Now verify the calculated set time corresponds to the requested
-    # elevation using an iterative approach.
-    # Do not bother if the estimated time is more than an hour in the past
-    # since the approximation should be more accurate than that
-    if ( $reftime->epoch - $set->epoch < 3600 ) {
-      $self->datetime( $set );
-      my $convok = $self->_iterative_el( $refel, -1 );
-      $set = ( $convok ? $self->datetime : undef );
-
-      # and restore the reference date
-      # Reset the clock
-      if ($havetime) {
-	$self->datetime( $reftime );
-      } else {
-	$self->datetime( undef );
-      }
-    }
-
-    # If the set time is in the future we jump out of the loop
-    # since everything is okay
-    last if (_cmp_time( $set, $self->datetime ) >= 0 );
-
-  }
-
-  # Should not happen, but check that we if have something set
-  # it is in the future
-  $set = undef if (_cmp_time( $set, $self->datetime) < 0);
-
-  return $set;
+  return $self->_rise_set_time( 0, @_);
 }
 
 
@@ -1390,8 +1289,9 @@ sub set_time {
 
 Hour angle at which the target will set. Negate this value to obtain
 the rise time. By default assumes the target sets at an elevation of 0
-degrees. An optional hash can be given with key of "horizon"
-specifying a different elevation (in radians).
+degrees (except for the Sun and Moon which are special-cased). An
+optional hash can be given with key of "horizon" specifying a
+different elevation (in radians).
 
   $ha = $c->ha_set;
   $ha = $c->ha_set( horizon => $el );
@@ -1401,7 +1301,7 @@ an explicit "format" is specified.
 
   $ha = $c->ha_set( horizon => $el, format => 'h');
 
-There are predefined elevations for events such as 
+There are predefined elevations for events such as
 Sun rise/set and Twilight (only relevant if your object
 refers to the Sun). See L<"CONSTANTS"> for more information.
 
@@ -1453,8 +1353,7 @@ sub ha_set {
     # requested "horizon" use an iterative technique to find the
     # set time.
     if ($self->transit_el > $horizon) {
-      my $reftime = $self->datetime;
-      my $havedt = $self->has_datetime;
+      my $oldtime = ( $self->has_datetime ? $self->datetime : undef);
       my $mt = $self->meridian_time();
       $self->datetime( $mt );
       print "# Calculating iterative set time for HA determination\n"
@@ -1463,7 +1362,7 @@ sub ha_set {
       return undef unless $convok;
       my $seconds = $self->datetime->epoch - $mt->epoch;
       $cos_ha0 = cos( $seconds * Astro::SLA::DS2R );
-      $self->datetime( ($havedt ? $reftime : undef ) );
+      $self->datetime( $oldtime );
     }
   }
 
@@ -1498,10 +1397,23 @@ By default the next transit following the current time is calculated and
 returned as a C<Time::Piece> or C<DateTime> object (depending on what
 is stored in C<datetime>).
 
-If you are happy to have a transit that has just occured (especially
-useful if you are simply trying to calculate values for a particularly
-day or have just passed transit and need to calculate a set time), use
-the "nearest" option set to true
+If you want control over which transit should be calculated this can be 
+specified using the "event" hash key:
+
+  $mt = $c->meridian_time( event => 1 );
+  $mt = $c->meridian_time( event => 0 );
+  $mt = $c->meridian_time( event => -1 );
+
+A value of "1" indicates the next transit following the current
+reference time (this is the default behaviour for reasons of backwards
+compatibility). A value of "-1" indicates that the closest transit
+event before the reference time should be used. A valud of "0"
+indicates that the nearest transit event should be returned. If the parameter
+value is not one of the above, it will default to "1".
+
+A synonym for event=>0 is provided by using the "nearest" key. If
+present and true, this key overrides "event". If present and false the
+"event" key is used (defaulting to "1" if event indicates "nearest"=1).
 
   $mt = $c->meridian_time( nearest => 1 );
 
@@ -1511,23 +1423,15 @@ sub meridian_time {
   my $self = shift;
   my %opt = @_;
 
+  # extract the true value of "event" given all the backwards compatibility
+  # problems
+  my $event = $self->_extract_event( %opt );
+
   # Get the current time (do not modify it since we need to put it back)
+  my $oldtime = ( $self->has_datetime ? $self->datetime : undef);
+
+  # Need a reference time for the calculation
   my $reftime = $self->datetime;
-
-  # Determine whether we have to remember the cache
-  my $havetime = $self->has_datetime;
-
-  my $dtime; # do we have DateTime objects
-
-  # Check Time::Piece first since there is a possibility that 
-  # this is really a subclass of DateTime
-  if ($reftime->isa( "Time::Piece")) {
-    $dtime = 0;
-  } elsif ($reftime->isa("DateTime")) {
-    $dtime = 1;
-  } else {
-    croak "Unknown DateTime object class";
-  }
 
   # For fast moving objects such as planets, we need to calculate
   # the transit time iteratively since the apparent RA/Dec will change
@@ -1536,6 +1440,60 @@ sub meridian_time {
   # that we are starting at the correct reference time so start at the
   # current time and look forward until we get a transit time > than
   # our start time
+
+  # calculate the required times
+  my $mtime;
+  if ($event == 1 || $event == -1) {
+    # previous or next
+    $mtime = $self->_calc_mtime( $reftime, $event );
+
+    # Reset the clock
+    $self->datetime( $oldtime );
+
+  } elsif ($event == 0) {
+    # nearest requires both
+    my $prev = $self->_calc_mtime( $reftime, -1 );
+    my $next = $self->_calc_mtime( $reftime,  1 );
+
+    # Reset the clock (before we possibly croak)
+    $self->datetime( $oldtime );
+
+    # calculate the diff
+    if (defined $prev && defined $next) {
+      my $prev_diff = abs( $reftime->epoch - $prev->epoch );
+      my $next_diff = abs( $reftime->epoch - $next->epoch );
+
+      if ($prev_diff < $next_diff) {
+	$mtime = $prev;
+      } else {
+	$mtime = $next;
+      }
+
+    } elsif (defined $prev) {
+      $mtime = $prev;
+    } elsif (defined $next) {
+      $mtime = $next;
+    } else {
+      croak "Should not occur in meridian_time\n";
+    }
+  } else {
+    croak "Unrecognized value for event: $event\n";
+  }
+
+  return $mtime;
+}
+
+sub _calc_mtime {
+  my $self = shift;
+  my ($reftime, $event ) = @_;
+
+  # event must be 1 or -1
+  if (!defined $event || ($event != 1 && $event != -1)) {
+    croak "Event must be either +1 or -1";
+  }
+
+  # do we have DateTime objects
+  my $dtime = $self->_isdt();
 
   # Somewhere to store the previous time so we can make sure things
   # are iterating nicely
@@ -1553,8 +1511,8 @@ sub meridian_time {
   # Increment (in hours) to jump forward each loop
   # Need to make sure we lock onto the correct transit so I'm
   # wary of jumping forward by exactly 24 hours
-  my $inc = 12;
-  $inc = 6 if lc($self->name) eq 'moon';
+  my $inc = 12 * $event;
+  $inc /= 2 if lc($self->name) eq 'moon';
 
   # Loop until mtime is greater than the reftime
   # and (mtime - prevtime) is smaller than a second
@@ -1574,25 +1532,25 @@ sub meridian_time {
     $mtime = $self->_local_mtcalc();
     print "New meridian time: ".$mtime->datetime ."\n" if $DEBUG;
 
-    # if we want to make sure we have the next transit, we need
-    # to compare the calculated time with the reference time
-    if (!$opt{nearest}) {
+    # make sure we are going the correct way
+    # since we are enforced to only find a transit in the direction
+    # governed by "event"
 
-      # Calculate the difference in epoch seconds before the current
-      # object reference time and the calculate transit time.
-      # Use ->epoch rather than overload since I'm having problems
-      # with Duration objects
-      my $diff = $reftime->epoch - $mtime->epoch;
-      if ($diff > 0) {
-	print "Need to offset....\n" if $DEBUG;
-	# this is an earlier transit time
-	# Need to keep jumping forward until we lock on to a meridian
-	# time that ismore recent than the ref time
-	if ($dtime) {
-	  $mtime->add( hours => ($count * $inc));
-	} else {
-	  $mtime = $mtime + ($count * $inc * Time::Seconds::ONE_HOUR);
-	}
+    # Calculate the difference in epoch seconds before the current
+    # object reference time and the calculate transit time.
+    # Use ->epoch rather than overload since I'm having problems
+    # with Duration objects
+    my $diff = $reftime->epoch - $mtime->epoch;
+    $diff *= $event; # make the comparison correct sense
+    if ($diff > 0) {
+      print "Need to offset....[diff = $diff sec]\n" if $DEBUG;
+      # this is an earlier transit time
+      # Need to keep jumping forward until we lock on to a meridian
+      # time that ismore recent than the ref time
+      if ($dtime) {
+	$mtime->add( hours => ($count * $inc));
+      } else {
+	$mtime = $mtime + ($count * $inc * Time::Seconds::ONE_HOUR);
       }
     }
 
@@ -1604,15 +1562,8 @@ sub meridian_time {
   }
 
   # warn if we did not converge
-  carp "Meridian time calculation failed to converge"
+  warnings::warnif "Meridian time calculation failed to converge"
      if $count > $max;
-
-  # Reset the clock
-  if ($havetime) {
-    $self->datetime( $reftime );
-  } else {
-    $self->datetime( undef );
-  }
 
   # return the time
   return $mtime;
@@ -1648,10 +1599,10 @@ sub _local_mtcalc {
     unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
 
   my $datetime = $self->datetime;
-  if ($datetime->isa('Time::Piece')) {
-    return ($datetime + $offset_sec);
-  } else {
+  if ($self->_isdt()) {
     return $datetime->clone->add( seconds => $offset_sec );
+  } else {
+    return ($datetime + $offset_sec);
   }
 
 #  return $mtime;
@@ -2246,6 +2197,129 @@ sub _default_horizon {
   return 0;
 }
 
+=item B<_rise_set_time>
+
+Return either the rise time or set time associated with a specific horizon.
+
+  $time = $c->_rise_set_time( $rise, %opt );
+
+Where the options hash controls the horizon and whether the event
+should follow the reference time, come before the reference time or be
+the nearest event.
+
+Supported keys for event control are processed by the _extract_event
+private method.
+
+$rise should be true if the source is rising, and false if the source
+is setting.
+
+=cut
+
+sub _rise_set_time {
+  my $self = shift;
+  my $rise = shift;
+  my %opt = @_;
+
+  # Calculate the HA required for setting
+  my $ha_set = $self->ha_set( %opt, format=> 'radians' );
+  return if ! defined $ha_set;
+
+  # extract the event information
+  my $event = $self->_extract_event( %opt );
+
+  # and convert to seconds
+  $ha_set *= Astro::SLA::DR2S;
+
+  # and thence to a duration if required
+  if ($self->_isdt()) {
+    $ha_set = new DateTime::Duration( seconds => $ha_set );
+  }
+
+  # Get the current time (do not modify it since we need to put it back)
+  my $reftime = $self->datetime;
+
+  # Determine whether we have to remember the cache
+  my $havetime = $self->has_datetime;
+
+  # Need the requested horizon
+  my $refel = (defined $opt{horizon} ? $opt{horizon} :
+		 $self->_default_horizon );
+
+  # somewhere to store the times
+  my @times;
+
+  # Calculate the set or rise time for both the previous and next meridian time
+  # so that we can work out which set time to return. There is probably
+  # an analytic short cut that can be used to decide whether the
+  # correct set time will be related to the previous or next meridian
+  # time simply by calculating the meridian time once and shifting
+  # it by 24 hours
+
+  for my $n (-1, 1) {
+    # Calculate the transit time
+    print "Calculating " .($n == -1 ? "previous" : "next") . " meridian time\n"
+      if $DEBUG;
+    my $mt = $self->meridian_time( event => $n );
+
+    # First guestimate for the event
+    my $event_time;
+    if ($rise) {
+      $event_time = $mt - $ha_set;
+    } else {
+      $event_time = $mt + $ha_set;
+    }
+
+    # Now converge about this value
+    $self->datetime( $event_time );
+    my $convok = $self->_iterative_el( $refel, ($rise ? 1 : -1) );
+    $event_time = ( $convok ? $self->datetime : undef );
+    print "**** Failed to converge\n" if ($DEBUG && !$convok);
+
+    # and restore the reference date to reset the clock
+    $self->datetime( ( $havetime ? $reftime : undef ) );
+
+    # store the event time
+    push(@times, $event_time) if defined $event_time;
+
+    print "Determined ".($rise ? "rise" : "set" ) . " time of ".
+       (defined $event_time ? $event_time : 'undef')."\n"
+       if $DEBUG;
+  }
+
+  # choose a value
+  my $event_time;
+  if ($event == -1) {
+    # We want the nearest time that is earlier than reference time
+    # Start from the end and jump out when 
+    for my $t (reverse @times) {
+      if ($t->epoch <= $reftime->epoch) {
+	$event_time = $t;
+	last;
+      }
+    }
+  } elsif ($event == 1) {
+    # start from the oldest until we hit a new time
+    for my $t (@times) {
+      if ($t->epoch >= $reftime->epoch) {
+	$event_time = $t;
+	last;
+      }
+    }
+  } elsif ($event == 0) {
+    # calculate the diff
+    my %diffs = map { abs( $reftime->epoch - $_->epoch), $_ } @times;
+    my @sort = sort { $a <=> $b } keys %diffs;
+    $event_time = $diffs{$sort[0]};
+
+  } else {
+    croak "Unrecognized event specifier in set_time";
+  }
+
+
+  return $event_time;
+}
+
+
 =item B<_iterative_el>
 
 Use an iterative technique to calculate the time the object passes through
@@ -2285,8 +2359,11 @@ sub _iterative_el {
   # Calculate current elevation
   my $el = $self->el;
 
-  # Tolerance (1 minute of arc)
-  my $tol = ( 30 / 3600 ) * Astro::SLA::DD2R;
+  # Tolerance (in arcseconds)
+  my $tol = 5 * Astro::SLA::DAS2R;
+
+  # smallest support increment
+  my $smallinc = 0.2;
 
   # Get the estimated time for this elevation
   my $time = $self->datetime;
@@ -2308,16 +2385,85 @@ sub _iterative_el {
     my $sign = ($el < $refel ? 1 : -1); # incrementing or decrementing time
     my $prevel; # previous elevation
 
+    # Indicate whether we have straddled the correct answer
+    my $has_been_high;
+    my $has_been_low;
+
     # This is a very simple convergence algorithm.
     # Newton-Raphson would be much faster given that the function
     # is almost linear for most elevations.
     while (abs($el-$refel) > $tol) {
       if (defined $prevel) {
-	# should check sign of gradient to make sure we are not
-	# running away to an incorrect gradient
 
-	# see if which way we should be moving
-	if ( abs($prevel - $refel) < abs( $el - $refel )) {
+	# should check sign of gradient to make sure we are not
+	# running away to an incorrect gradient. Note that this function
+	# can be highly curved if we are near ante transit.
+
+	# There are two constraints that have to be used to control
+	# the convergence
+	#  - make sure we are not diverging with each iteration
+	#  - make sure we are not bouncing around missing the final
+	#    value due to inaccuracies in the time resolution (this is
+	#    important for fast moving objects like the sun). Currently
+	#    we are not really doing anything useful by tweaking by less
+	#    than a second
+
+	# The problem is that we can not stop on bracketing the correct
+	# value if we are never going to reach the value itself because
+	# it never rises or never sets
+
+	#          \   /
+	#           \ /
+	#            -   <--  minimum elevation
+	#                <--  required elevation
+
+	# in the above case each step will diverge but will never
+	# straddle
+
+	# The solution is to first iterate by using a divergence
+	# criterion. Then, if we determine that we have straddled the
+	# correct result, we switch to a stopping criterion that
+	# uses the time resolution if we never fully converge (the
+	# important thing is to return a time not an elevation)
+
+	my $diff_to_prev = $prevel - $refel;
+	my $diff_to_curr = $el - $refel;
+
+	# set the straddle parameters
+	if ($diff_to_curr < 0) {
+	  $has_been_low = 1;
+	} else {
+	  $has_been_high = 1;
+	}
+
+	# if we have straddled, stop on increment being small
+
+	# now determine whether we should reverse
+	# if we know we are bouncing around the correct value
+	# we can reverse as soon as the previous el and the current el
+	# are either side of the correct answer
+	my $reverse;
+	if ($has_been_low && $has_been_high) {
+	  # we can abort if we are below the time resolution
+	  last if $inc < $smallinc;
+
+	  # reverse 
+	  $reverse = 1 if ($diff_to_prev / $diff_to_curr < 0);
+	} else {
+	  # abort if the inc is too small
+	  return undef if $inc < $smallinc;
+
+	  # if we have not straddled, we reverse if the previous el
+	  # is closer than this el
+	  $reverse = 1 if abs($diff_to_prev) < abs($diff_to_curr);
+	}
+
+	# if the increment is small, bounce
+
+
+	# reverse
+	if ( $reverse ) {
+
 	  # the gap between the previous measurement and the reference
  	  # is smaller than the current gap. We seem to be diverging.
 	  # Change direction
@@ -2328,8 +2474,6 @@ sub _iterative_el {
 	  # in the linear approximation
 	  # we know the gradient
 
-	  # we are not going to converge
-	  return undef if $inc < 0.1;
 	}
       }
 
@@ -2343,7 +2487,12 @@ sub _iterative_el {
       } else {
 	# increment the time (this happens in place so we do not need to
 	# register the change with the datetime method
-	$time->add( seconds => "$delta" );
+	if (abs($delta) > 1) {
+	  $time->add( seconds => "$delta" );
+	} else {
+	  $time->add( nanoseconds => ( $delta * 1E9 ) );
+	}
+
       }
       # recalculate the elevation, storing the previous as reference
       $prevel = $el;
@@ -2358,12 +2507,13 @@ sub _iterative_el {
 
 =item B<_isdt>
 
-Internal method. Returns true if the C<datetime> method contains a DateTime
-object. Returns false otherwise (assumed to be Time::Piece). If an optional argument
-is supplied that argument is tested instead.
+Internal method. Returns true if the C<datetime> method contains a
+DateTime object. Returns false otherwise (assumed to be
+Time::Piece). If an optional argument is supplied that argument is
+tested instead.
 
   $isdt = $self->_isdt();
-  $isdt = $self->_idt( $dt );
+  $isdt = $self->_isdt( $dt );
 
 =cut
 
@@ -2373,10 +2523,59 @@ sub _isdt {
 
   $test = $self->datetime unless defined $test;
 
-  if (blessed( $test ) eq 'DateTime' ) {
-    return 1;
+  # Check Time::Piece first since there is a possibility that 
+  # this is really a subclass of DateTime
+  my $dtime;
+  if ($test->isa( "Time::Piece")) {
+    $dtime = 0;
+  } elsif ($test->isa("DateTime")) {
+    $dtime = 1;
   } else {
-    return 0;
+    croak "Unknown DateTime object class ". blessed($test);
+  }
+
+  return $dtime;
+}
+
+=item B<_extract_event>
+
+Parse an options hash to determine the correct value of the "event" key
+given backwards compatibility requirements.
+
+  $event = $self->_extract_event( %opt );
+
+ - "nearest" trumps "event" if "nearest" is true. Returns event=0
+
+ - If "event" is not defined, it defaults to "1"
+
+ - If "nearest" is false, "event" is used unless "event"=0 in
+   which case "nearest" trumps "event" and returns "1".
+
+=cut
+
+sub _extract_event {
+  my $self = shift;
+
+  # make sure the $opt{event} always exists
+  my $default = 1;
+  my %opt = (event => $default, @_);
+
+  if (exists $opt{nearest}) {
+    if ($opt{nearest}) {
+      # request for nearest
+      return 0;
+    } else {
+      # request for not nearest
+      if ($opt{event} == 0) {
+	# this is incompatible with nearest=0 so return default
+	return $default;
+      } else {
+	return $opt{event};
+      }
+    }
+
+  } else {
+    return $opt{event};
   }
 }
 
