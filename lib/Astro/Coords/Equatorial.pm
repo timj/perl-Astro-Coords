@@ -37,9 +37,10 @@ not possible to supply coordinates at an alternative epoch.
 use 5.006;
 use strict;
 use warnings;
+use warnings::register;
 use Carp;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use Astro::SLA ();
 use base qw/ Astro::Coords /;
