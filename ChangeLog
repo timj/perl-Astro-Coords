@@ -1,3 +1,8 @@
+2005-04-06  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords/Elements.pm (apparent): Include the target name
+	in the error message when failing to determine the apparent RA/Dec.
+
 2005-03-16  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* t/basic.t: Test the array Elements constructor

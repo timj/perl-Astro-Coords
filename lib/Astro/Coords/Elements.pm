@@ -378,7 +378,9 @@ sub apparent {
 			$el{AORQ}, $el{E}, $el{AORL}, $el{DM}, 
 			my $ra, my $dec, my $dist, my $j);
 
-  croak "Error determining apparent RA/Dec [status=$j]" if $j != 0;
+  croak "Error determining apparent RA/Dec for target ".
+              (defined $self->name ? $self->name : '' )
+                  ."[status=$j]" if $j != 0;
 
   # Convert from observed to apparent place
   Astro::SLA::slaOap("r", $ra, $dec, $self->_mjd_tt, 0.0, $long, $lat, 
