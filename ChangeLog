@@ -1,3 +1,20 @@
+2004-12-08  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords.pm (native): Add native() method to keep track
+	of original form.
+
+2004-12-07  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords.pm: Use Astro::Coords::Angle[::Hour] for all
+	return values that return angles. Make public methods for
+	returning pairs of coordinates (azel, radec,apparent).
+
+	* lib/Astro/Coords.pm: Add radec1950 method
+
+2004-12-04  Tim Jenness  <tjenness@cpan.org>
+
+	* t/angle.t: Add tests for Angle classes
+	
 2004-11-21  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords/Planet.pm: Add diam() method to return the
@@ -24,6 +41,12 @@
 
 	* t/riseset.t: Include DateTime and Time::Piece tests
 
+2004-04-19  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Angle.pm: Create
+
+	* lib/Astro/Coords/Angle/Hour.pm: Create
+	
 2004-04-12  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords/Equatorial.pm (_ecllonglat): Add ecliptic
