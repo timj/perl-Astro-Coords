@@ -1,3 +1,10 @@
+2005-02-18  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm: Rewrite the rise/set iterative code to
+	handle all cases properly. Add new parameter "event" to control
+	whether the nearest, previous or next rise/set time should be
+	returned.
+
 2005-02-16  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords/Angle.pm (_guess_units): Use Scalar::Util to
@@ -13,7 +20,8 @@
 2005-02-04  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm (_iterative_el): Fix case when moon almost
-	sets but doesn't quite make it (thanks for bug report from Beat Vontobel)
+	sets but doesn't quite make it (thanks for bug report from Beat
+	Vontobel)
 
 2005-01-05  Tim Jenness  <timj@jach.hawaii.edu>
 
