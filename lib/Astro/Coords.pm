@@ -596,13 +596,22 @@ sub status {
   my $self = shift;
   my $string;
 
+  $string .= "Target name:    " . $self->name . "\n"
+    if $self->name;
+
   $string .= "Coordinate type:" . $self->type ."\n";
 
   $string .= "Elevation:      " . $self->el(format=>'d')." deg\n";
   $string .= "Azimuth  :      " . $self->az(format=>'d')." deg\n";
   my $ha = Astro::SLA::slaDrange( $self->ha ) * Astro::SLA::DR2H;
   $string .= "Hour angle:     " . $ha ." hrs\n";
-  $string .= "Apparent dec:   " . $self->dec_app(format=>'d')." deg\n";
+  $string .= "Apparent RA :   " . $self->ra_app(format=>'s')."\n";
+  $string .= "Apparent dec:   " . $self->dec_app(format=>'s')."\n";
+
+  if ($self->can('ra')) {
+    $string .= "RA (J2000):   " . $self->ra(format=>'s')."\n";
+    $string .= "Dec(J2000):   " . $self->dec(format=>'s')."\n";
+  }
 
   if (defined $self->telescope) {
     $string .= "Telescope:      " . $self->telescope->fullname . "\n";
@@ -614,6 +623,8 @@ sub status {
   }
 
   $string .= "For time ". $self->datetime ."\n";
+  my $fmt = 's';
+  $string .= "LST: ". $self->_cvt_fromrad($self->_cvt_tohrs(\$fmt,$self->_lst),$fmt) ."\n";
 
   return $string;
 }
