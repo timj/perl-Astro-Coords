@@ -225,7 +225,7 @@ the elements.
 sub stringify {
   my $self = shift;
   my %el = $self->elements;
-  my $str = join(",", values %el);
+  my $str = join(",", map { (defined $_ ? $_ : 'UNDEF' ) } values %el);
   return $str;
 }
 
