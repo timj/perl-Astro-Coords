@@ -4,7 +4,7 @@
 # Test using both DateTime and Time::Piece
 
 use strict;
-use Test::More tests => 270;
+use Test::More tests => 295;
 use Time::Piece qw/ :override /;
 use DateTime;
 use DateTime::TimeZone;
@@ -227,7 +227,7 @@ for my $targ (sort keys %data) {
       is( $time->month, $refdate->month, "Check month");
       is( $day, $refdate->day, "Check day");
       is( $rounded, $m->[0], "Test hour for this elevation");
-      
+
     } else {
       ok(0, "Unable to determine time for elevation ". $m->[1]);
     }
@@ -240,7 +240,7 @@ for my $targ (sort keys %data) {
 my $moon2 = new Astro::Coords( planet => 'MOON' );
 
 my $place = new Astro::Telescope(Name => 'test',
-                                 Long => 18.41 * Astro::SLA::DD2R,
+                                 Long => 18.4 * Astro::SLA::DD2R,
                                  Lat =>  64.80 * Astro::SLA::DD2R,
                                  Alt =>  0);
 
@@ -249,18 +249,50 @@ my $time = DateTime->new(year => 2005,
                          day => 20,
                          hour => 8,
                          minute => 11,
-                         second => 41);
+                         second => 41,
+			 time_zone => $UTC
+			);
 
 $moon2->telescope($place);
 $moon2->datetime($time);
+
+my $rise = $moon2->rise_time();
+test_time( $rise, [2005,1,20,8,12], "Moon rise", $UTC);
+my $transit = $moon2->meridian_time();
+test_time( $transit, [2005,1,20,19,19], "Moon transit", $UTC);
 my $set = $moon2->set_time();
 is($set, undef, "Moon does not set");
+
+# and another from Beat Vontobel
+$time = DateTime->new ( year => 2005,
+			month =>   1,
+			day =>     7,
+			hour =>    9,
+			minute =>  2,
+			second =>  24,
+			time_zone => $UTC
+		      );
+
+$moon2->datetime($time);
+$rise = $moon2->rise_time(nearest => 1);
+
+# Should be 05:57. Off by 49 seconds
+test_time( $rise, [2005,1,7,5,58], "Moon rise", $UTC);
+$transit = $moon2->meridian_time(nearest => 1);
+test_time( $transit, [2005,1,7,7,37], "Moon transit", $UTC);
+$set = $moon2->set_time(nearest => 1);
+
+# Should be 09:03. Off by 38 seconds
+test_time( $set, [2005,1,7,9,2], "Moon set", $UTC);
+
 
 exit;
 
 # dates to be tested are in UTC but answer is given in HST
 sub test_time {
   my ($ref, $answer, $text, $tz) = @_;
+  my @methods = qw/ year month day hour minute /;
+
 
   my $dt = new DateTime( year => $answer->[0],
 			 month => $answer->[1],
@@ -269,15 +301,18 @@ sub test_time {
 			 minute => $answer->[4],
 			 time_zone => $tz,
 		       );
-  my $localref = DateTime->from_epoch( epoch => $ref->epoch,
-				       time_zone => $tz,
-				     );
 
-  my $sec = $localref->second;
-  for my $method ( qw/ year month day hour minute / ) {
-    my $comp = $localref->$method;
+  my $localref;
+  $localref = DateTime->from_epoch( epoch => $ref->epoch,
+				    time_zone => $tz,
+				  ) if defined $ref;
+
+  print "# Cf ".(defined $localref ? $localref : 'undef' )." with $dt\n";
+  my $sec = (defined $localref ? $localref->second : 0);
+  for my $method ( @methods ) {
+    my $comp = (defined $localref ? $localref->$method : undef );
     # round up seconds
-    $comp++ if ($method eq 'minute' && $sec > 30);
+    $comp++ if ($method eq 'minute' && $sec >= 30);
 
     is($comp, $dt->$method, "$text: $method  [".$dt->datetime."]");
   }
