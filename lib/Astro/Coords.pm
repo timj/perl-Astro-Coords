@@ -525,6 +525,7 @@ sub pa {
   return $self->_cvt_fromrad(Astro::SLA::slaPa($ha, $dec, $lat), $opt{format});
 }
 
+
 =item B<isObservable>
 
 Determine whether the coordinates are accessible for the current
@@ -811,14 +812,14 @@ sub _cvt_fromrad {
     if ($format =~ /^a/) {
       # Store the sign
       unshift(@dmsf, $sign);
-      # Combine the fraction
+      # Combine the fraction [assuming fixed precision]
       my $frac = pop(@dmsf);
-      $dmsf[-1] .= ".$frac";
+      $dmsf[-1] .= sprintf( ".%0$res"."d",$frac);
       # Store the reference
       $in = \@dmsf;
     } else {
       $sign = ' ' if $sign eq "+";
-      $in = $sign . sprintf("%02d:%02d:%02d.%$res.$res"."d",@dmsf);
+      $in = $sign . sprintf("%02d:%02d:%02d.%0$res"."d",@dmsf);
     }
   }
 

@@ -1,5 +1,5 @@
 use strict;
-use Test::More tests => 77;
+use Test::More tests => 92;
 
 require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
@@ -81,7 +81,7 @@ test_array_elem(\@summary,\@result);
 ok( $c->isObservable );
 
 
-# No tests for elements yet
+# No tests for elements yet [they are later in file]
 
 # Test Fixed on Earth coordinate frames
 # and compare with the previous values for Mars
@@ -158,6 +158,41 @@ ok( $c->isObservable );
 $c->telescope( $ukirt );
 ok( !$c->isObservable );
 
+
+# Verify stringification
+$c = new Astro::Coords( ra => '07 42 16.939',
+			dec => '-14 42 49.05',
+			type => "J2000",
+			name => 'OH231.8');
+
+is( $c->dec(format => 'sex'), "-14:42:49.05","Test Dec stringification");
+is( $c->ra(format => 'sex'), " 07:42:16.94","Test RA stringification");
+
+my $array = $c->dec(format => 'array');
+is($array->[0],'-',"test Array sign");
+is($array->[1],14, "test Array degrees");
+is($array->[2],42, "test Array minutes");
+is($array->[3],'49.05',"test Array seconds");
+
+# And again with values that have caused problems in the past
+$c = new Astro::Coords( ra => '07 42 16.83',
+			dec => '-14 42 52.1',
+			type => "J2000",
+			name => 'OH231.8 [alternative]');
+
+is( $c->dec(format => 'sex'), "-14:42:52.10","Test Dec stringification");
+is( $c->ra(format => 'sex'), " 07:42:16.83","Test RA stringification");
+
+$array = $c->dec(format => 'array');
+is($array->[0],'-',"test Array sign");
+is($array->[1],14, "test Array degrees");
+is($array->[2],42, "test Array minutes");
+is($array->[3],'52.10',"test Array seconds");
+
+$array = $c->ra(format => 'array');
+is($array->[0],7, "test Array degrees");
+is($array->[1],42, "test Array minutes");
+is($array->[2],'16.83',"test Array seconds");
 
 # Some random comparisons with SCUBA headers
 print "# Compare with SCUBA observations\n";
