@@ -346,6 +346,36 @@ sub apparent {
 	 new Astro::Coords::Angle($dec, units => 'rad'));
 }
 
+=item B<rv>
+
+Radial velocity of the planet relative to the Earth geocentre.
+
+=cut
+
+sub rv {
+  croak "Not yet implemented element radial velocities";
+}
+
+=item B<vdefn>
+
+Velocity definition. Always 'RADIO'.
+
+=cut
+
+sub vdefn {
+  return 'RADIO';
+}
+
+=item B<vframe>
+
+Velocity reference frame. Always 'GEO'.
+
+=cut
+
+sub vframe {
+  return 'GEO';
+}
+
 =back
 
 =head1 NOTES

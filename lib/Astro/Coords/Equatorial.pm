@@ -22,6 +22,13 @@ Astro::Coords::Equatorial - Manipulate equatorial coordinates
                                       epoch => 2004.529,
                                       );
 
+  $c = new Astro::Coords( ra => '16h24m30.2s',
+                          dec => '-00d54m2s',
+                          type => 'J2000',
+                          rv => 31,
+                          vdefn => 'RADIO',
+                          vframe => 'LSRK' );
+
 
 =head1 DESCRIPTION
 
@@ -97,6 +104,23 @@ assumed to be correct for the specified EQUINOX (Epoch = 2000.0 for
 J2000, epoch = 1950.0 for B1950) unless an explicit epoch is
 specified.  If the epoch is supplied it is assumed to be a Besselian
 epoch for FK4 coordinates and Julian epoch for all others.
+
+Radial velocities can be specified using hash arguments:
+
+  rv  =>  radial velocity (km/s)
+  vdefn => velocity definition (RADIO, OPTICAL) [default: OPTICAL]
+  vframe => velocity reference frame (HEL,GEO,TOP,LSRK,LSRD) [default: HEL]
+
+Note that the radial velocity is only used to calculate position if
+parallax or proper motions are also supplied. These values will be used
+for calculating a doppler correction.
+
+Additionally, a redshift can be specified:
+
+  redshift => 2.3
+
+this overrides rv, vdefn and vframe. A redshift is assumed to be an optical
+velocity in the heliocentric frame.
 
 Usually called via C<Astro::Coords> as a factor method.
 
@@ -174,12 +198,15 @@ sub new {
 # taking the proper motion and parallax into account.
     if( $epoch != 2000 &&
         ( $pm1 != 0 || $pm2 != 0 || $parallax != 0 ) ) {
+      # Assume we are HEL without checking
+      my $rv = ( exists $args{rv} && $args{rv} ? $args{rv} : 0);
+
       my ( $ra0, $dec0 );
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
                          Astro::SLA::DAS2R * $parallax,
-                         0.0, # radial velocity
+			 $rv,
                          $epoch, # input epoch
 			 2000.0, # output epoch
                          $ra0,
@@ -209,12 +236,15 @@ sub new {
 
 # For the implementation details, see section 4.1 of SUN/67.
     if( $pm1 != 0 || $pm2 != 0 || $parallax != 0 ) {
+      # Assume we are HEL without checking
+      my $rv = ( exists $args{rv} && $args{rv} ? $args{rv} : 0);
+
       # We are converting to J2000 but we need to convert that to Besselian epoch
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
                          Astro::SLA::DAS2R * $parallax,
-                         0.0, # radial velocity
+                         $rv,
                          $epoch,
                          Astro::SLA::slaEpco('B','J',2000.0), # Besselian epoch
                          $ra0,
@@ -276,9 +306,19 @@ sub new {
 		  pm => $args{pm}, parallax => $args{parallax}
 		}, $class;
 
+  # Specify the native encoding
   $c->native( $native );
-  return $c;
 
+  # Now set the velocity parameters
+  if (exists $args{redshift}) {
+    $c->_set_redshift( $args{redshift} );
+  } else {
+    $c->_set_rv( $args{rv} ) if exists $args{rv};
+    $c->_set_vdefn( $args{vdefn} ) if exists $args{vdefn};
+    $c->_set_vframe( $args{vframe} ) if exists $args{vframe};
+  }
+
+  return $c;
 }
 
 
@@ -320,8 +360,13 @@ sub radec {
 
   if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
     # We have proper motions
+    # Radial velocity in HEL frame
+    my $rv = $self->rv;
+    $rv += $self->vdiff( 'HEL', '' );
+
+    # Correct for proper motion
     Astro::SLA::slaPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
-		       Astro::SLA::DAS2R * $pm[1], $par, 0, 2000.0,
+		       Astro::SLA::DAS2R * $pm[1], $par, $rv, 2000.0,
 		       Astro::SLA::slaEpj($self->_mjd_tt), $ra, $dec );
 
     # Convert to Angle objects
@@ -529,9 +574,18 @@ sub apparent {
   @pm = (0,0) unless @pm;
   $par = 0.0 unless defined $par;
 
+  # do not attempt to correct for radial velocity unless we are doing parallax or
+  # proper motion correction
+  my $rv = 0;
+  if ($par != 0 || $pm[0] != 0 || $pm[1] != 0 ) {
+    # Radial velocity in HEL frame
+    $rv = $self->rv;
+    $rv += $self->vdiff( 'HEL', '' );
+  }
+
   Astro::SLA::slaMap( $ra, $dec,
 		      Astro::SLA::DAS2R * $pm[0],
-		      Astro::SLA::DAS2R * $pm[1], $par, 0.0, 2000.0, $mjd,
+		      Astro::SLA::DAS2R * $pm[1], $par, $rv, 2000.0, $mjd,
 		      my $ra_app, my $dec_app);
 
   # Convert from observed to apparent place

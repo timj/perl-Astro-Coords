@@ -108,7 +108,7 @@ use Carp;
 use vars qw/ $DEBUG /;
 $DEBUG = 0;
 
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 
 use Math::Trig qw/ acos /;
 use Astro::SLA ();
@@ -135,6 +135,12 @@ use constant AST_TWILIGHT => ( - (18 * 3600) * Astro::SLA::DAS2R); # 18 deg
 
 # This is a fudge. Not accurate
 use constant MOON_RISE_SET => ( 5 * 60 * Astro::SLA::DAS2R);
+
+# Number of km in one Astronomical Unit
+use constant AU2KM => 149.59787066e6;
+
+# Speed of light ( km/s )
+use constant CLIGHT => 2.99792458e5;
 
 =head1 METHODS
 
@@ -1629,6 +1635,434 @@ sub transit_el {
 
 =back
 
+=head2 Velocities
+
+This sections describes the available methods for determining the velocities
+of each of the standard velocity frames in the direction of the reference
+target relative to the current observer position and reference time.
+
+=over 4
+
+=item B<rv>
+
+Return the radial velocity of the target (not the observer) in km/s.
+This will be used for parallax corrections (if relevant) and for
+calculating the doppler correction factor.
+
+  $rv = $c->rv();
+
+If the velocity was originally specified as a redshift it will be
+returned here as optical velocity (and may not be a physical value).
+
+If no radial velocity has been specified, returns 0 km/s.
+
+=cut
+
+sub rv {
+  my $self = shift;
+  return (defined $self->{RadialVelocity} ? $self->{RadialVelocity} : 0 );
+}
+
+# internal set routine
+sub _set_rv {
+  my $self = shift;
+  $self->{RadialVelocity} = shift;
+}
+
+=item B<redshift>
+
+Redshift is defined as the optical velocity as a fraction of the speed of light:
+
+  v(opt) = c z
+
+Returns the reshift if the velocity definition is optical. If the velocity definition
+is radio, redshift can only be calculated for small radio velocities.
+An attempt is made to calculate redshift from radio velocity using
+
+  v(opt) = v(radio) / ( 1 - v(radio) / c )
+
+but only if v(radio)/c is small. Else returns undef.
+
+=cut
+
+sub redshift {
+  my $self = shift;
+  my $vd = $self->vdefn;
+  if ($vd eq 'REDSHIFT' || $vd eq 'OPTICAL') {
+    return ( $self->rv / CLIGHT );
+  } else {
+    my $rv = $self->rv;
+    # 10% of light speed
+    if ( ($rv / CLIGHT) < 0.01 ) {
+      my $vopt = $rv / ( 1 - ( $rv / CLIGHT ) );
+      return ( $vopt / CLIGHT );
+    } else {
+      return undef;
+    }
+  }
+}
+
+# internal set routine
+sub _set_redshift {
+  my $self = shift;
+  my $z = shift;
+  $z = 0 unless defined $z;
+  $self->_set_rv( CLIGHT * $z );
+  $self->_set_vdefn( 'REDSHIFT' );
+  $self->_set_vframe( 'HEL' );
+}
+
+=item B<vdefn>
+
+The velocity definition used to specify the target radial velocity.
+This is a readonly parameter set at object creation (depending on subclass)
+and can be one of RADIO, OPTICAL or REDSHIFT (which is really optical but specified
+in a different way).
+
+  $vdefn = $c->vdefn();
+
+Required for calculating the doppler correction. Defaults to 'OPTICAL'.
+
+=cut
+
+sub vdefn {
+  my $self = shift;
+  return (defined $self->{VelocityDefinition} ? $self->{VelocityDefinition} : 'OPTICAL' );
+}
+
+# internal set routine
+sub _set_vdefn {
+  my $self = shift;
+  my $defn = shift;
+  if (defined $defn) {
+    # undef resets to default
+    $defn = uc( $defn );
+    croak "Unrecognized velocity definition: $defn. Must be RADIO, OPTICAL or REDSHIFT"
+      unless ($defn eq 'RADIO' or $defn eq 'OPTICAL' or $defn eq 'REDSHIFT');
+  }
+  $self->{VelocityDefinition} = $defn;
+}
+
+=item B<vframe>
+
+The velocity frame used to specify the radial velocity. This attribute is readonly
+and set during object construction. Abbreviations are used for the first 3 characters
+of the standard frames (4 to distinguish LSRK from LSRD):
+
+  HEL  - Heliocentric (the Sun)
+  GEO  - Geocentric   (Centre of the Earth)
+  TOP  - Topocentric  (Surface of the Earth)
+  LSR  - Kinematical Local Standard of Rest
+  LSRK - As for LSR
+  LSRD - Dynamical Local Standard of Rest
+
+The usual definition for star catalogues is Heliocentric. Default is Heliocentric.
+
+=cut
+
+sub vframe {
+  my $self = shift;
+  return (defined $self->{VelocityFrame} ? $self->{VelocityFrame} : 'HEL' );
+}
+
+# internal set routine
+sub _set_vframe {
+  my $self = shift;
+  my $frame = shift;
+  if (defined $frame) {
+    # undef resets to default
+    $frame = $self->_normalise_vframe( $frame );
+  }
+  $self->{VelocityFrame} = $frame;
+}
+
+=item B<obsvel>
+
+Calculates the observed velocity of the target as seen from the
+observer's location. Includes both the observer velocity and target
+velocity.
+
+ $rv = $c->obsvel;
+
+Note that the source velocity and observer velocity are simply added
+without any regard for relativistic effects for high redshift sources.
+
+=cut
+
+sub obsvel {
+  my $self = shift;
+  my $vdefn = $self->vdefn;
+  my $vframe = $self->vframe;
+  my $rv = $self->rv;
+
+  # Now we need to calculate the observer velocity in the
+  # target frame
+  my $vobs = $self->vdiff( '', 'TOPO' );
+
+  # Total velocity between observer and target
+  my $vtotal = $vobs + $rv;
+
+  return $vtotal;
+}
+
+=item B<doppler>
+
+Calculates the doppler factor required to correct a rest frequency to
+an observed frequency. This correction is calculated for the observer
+location and specified date and uses the velocity definition provided
+to the object constructor. Both the observer radial velocity, and the
+target radial velocity are taken into account (see the C<obsvel>
+method).
+
+  $dopp = $c->doppler;
+
+Default definitions and frames will be used if none were specified.
+
+The doppler factors (defined as  frequency/rest frequency or 
+rest wavelength / wavelength) are calculated as follows:
+
+ RADIO:    1 - v / c
+
+ OPTICAL   1 - v / ( v + c )
+
+ REDSHIFT  ( 1 / ( 1 + z ) ) * ( 1 - v(hel) / ( v(hel) + c ) )
+
+ie in order to observe a line in the astronomical target, multiply the
+rest frequency by the doppler correction to select the correct frequency
+at the telescope to tune the receiver.
+
+For high velocity optical sources ( v(opt) << c ) and those sources
+specified using redshift, the doppler correction is properly
+calculated by first correcting the rest frequency to a redshifted
+frequency (dividing by 1 + z) and then separately correcting for the
+telescope motion relative to the new redshift corrected heliocentric
+rest frequency. The REDSHIFT equation, above, is used in this case and
+is used if the source radial velocity is > 0.01 c. ie the Doppler
+correction is calculated for a source at 0 km/s Heliocentric and
+combined with the redshift correction.
+
+The Doppler correction is invalid for large radio velocities.
+
+=cut
+
+sub doppler {
+  my $self = shift;
+  my $vdefn = $self->vdefn;
+  my $obsvel = $self->obsvel;
+
+  # Doppler correction depends on definition
+  my $doppler;
+  if ( $vdefn eq 'RADIO' ) {
+    $doppler = 1 - ( $obsvel / CLIGHT );
+  } elsif ( $vdefn eq 'OPTICAL' || $vdefn eq 'REDSHIFT' ) {
+    if ( $obsvel > (0.01 * CLIGHT)) {
+      # Relativistic velocity
+      # First calculate the redshift correction
+      my $zcorr = 1 / ( 1 + $self->redshift );
+
+      # Now the observer doppler correction to Heliocentric frame
+      my $vhel = $self->vhelio;
+      my $obscorr = 1 - ( $vhel / ( CLIGHT * $vhel) );
+
+      $doppler = $zcorr * $obscorr;
+
+    } else {
+      # small radial velocity, use standard doppler formula
+      $doppler = 1 - ( $obsvel / ( CLIGHT + $obsvel ) );
+    }
+  } else {
+    croak "Can not calculate doppler correction for unsupported definition $vdefn\n";
+  }
+  return $doppler;
+}
+
+=item B<vdiff>
+
+Simple wrapper around the individual velocity methods (C<vhelio>, C<vlsrk> etc)
+to report the difference in velocity between two arbitrary frames.
+
+  $vd = $c->vdiff( 'HELIOCENTRIC', 'TOPOCENTRIC' );
+  $vd = $c->vdiff( 'HEL', 'LSRK' );
+
+Note that the velocity methods all report their velocity relative to the
+observer (ie topocentric correction), equivalent to specifiying 'TOPO'
+as the second argument to vdiff.
+
+The two arguments are mandatory but if either are 'undef' they are converted
+to the target velocity frame (see C<vdefn> method).
+
+The second example is simply equivalent to 
+
+  $vd = $c->vhelio - $c->vlsrk;
+
+but the usefulness of this method really comes into play when defaulting to
+the target frame since it removes the need for logic in the main program.
+
+  $vd = $c->vdiff( 'HEL', '' );
+
+=cut
+
+sub vdiff {
+  my $self = shift;
+  my $f1 = ( shift || $self->vframe );
+  my $f2 = ( shift || $self->vframe );
+
+  # convert the arguments to standardised frames
+  $f1 = $self->_normalise_vframe( $f1 );
+  $f2 = $self->_normalise_vframe( $f2 );
+
+  return 0 if $f1 eq $f2;
+
+  # put all the supported answers in a hash relative to TOP
+  my %vel;
+  $vel{TOP} = 0;
+  $vel{GEO} = $self->verot();
+  $vel{HEL} = $self->vhelio;
+  $vel{LSRK} = $self->vlsrk;
+  $vel{LSRD} = $self->vlsrd;
+  $vel{GAL}  = $self->vgalc;
+  $vel{LG}   = $self->vlg;
+
+  # now the difference is easy
+  return ( $vel{$f1} - $vel{$f2} );
+}
+
+=item B<verot>
+
+The velocity component of the Earth's rotation in the direction of the
+target (in km/s).
+
+  $vrot = $c->verot();
+
+Current time will be assumed if none is set. If no observer location
+is specified, the equator at 0 deg lat will be used.
+
+=cut
+
+sub verot {
+  my $self = shift;
+
+  # Local Sidereal Time
+  my $lst = $self->_lst;
+
+  # Observer location
+  my $tel = $self->telescope;
+  my $lat = (defined $tel ? $tel->lat : 0 );
+
+  # apparent ra dec
+  my ($ra, $dec) = $self->apparent();
+
+  return Astro::SLA::slaRverot( $lat, $ra, $dec, $lst );
+}
+
+=item B<vorb>
+
+Velocity component of the Earth's orbit in the direction of the target
+(in km/s) for the current date and time.
+
+  $vorb = $c->vorb;
+
+=cut
+
+sub vorb {
+  my $self = shift;
+
+  # Earth velocity (and position)
+  my @vb = (0,0,0);
+  my @pb = (0,0,0);
+  my @vh = (0,0,0);
+  my @ph = (0,0,0);
+  Astro::SLA::slaEvp($self->_mjd_tt(), 2000.0,@vb,@pb,@vh,@ph);
+
+  # Convert spherical source coords to cartesian
+  my ($ra, $dec) = $self->radec;
+  my @cart = (0,0,0);
+  Astro::SLA::slaDcs2c($ra,$dec,@cart);
+
+  # Velocity due to Earth's orbit is scalar product of the star position
+  # with the Earth's heliocentric velocity
+  my $vorb = - Astro::SLA::slaDvdv(@cart,@vh)* AU2KM;
+  return $vorb;
+}
+
+=item B<vhelio>
+
+Velocity of the observer with respect to the Sun in the direction of
+the target (ie the heliocentric frame).  This is simply the sum of the
+component due to the Earth's orbit and the component due to the
+Earth's rotation.
+
+ $vhel = $c->vhelio;
+
+=cut
+
+sub vhelio {
+  my $self = shift;
+  return ($self->verot + $self->vorb);
+}
+
+=item B<vlsrk>
+
+Velocity of the observer with respect to the kinematical Local Standard
+of Rest in the direction of the target.
+
+  $vlsrk = $c->vlsrk();
+
+=cut
+
+sub vlsrk {
+  my $self = shift;
+  my ($ra, $dec) = $self->radec;
+  return (Astro::SLA::slaRvlsrk( $ra, $dec ) + $self->vhelio);
+}
+
+=item B<vlsrd>
+
+Velocity of the observer with respect to the dynamical Local Standard
+of Rest in the direction of the target.
+
+  $vlsrd = $c->vlsrd();
+
+=cut
+
+sub vlsrd {
+  my $self = shift;
+  my ($ra, $dec) = $self->radec;
+  return (Astro::SLA::slaRvlsrd( $ra, $dec ) + $self->vhelio);
+}
+
+=item B<vgalc>
+
+Velocity of the observer with respect to the centre of the Galaxy
+in the direction of the target.
+
+  $vlsrd = $c->vgalc();
+
+=cut
+
+sub vgalc {
+  my $self = shift;
+  my ($ra, $dec) = $self->radec;
+  return (Astro::SLA::slaRvgalc( $ra, $dec ) + $self->vlsrd);
+}
+
+=item B<vgalc>
+
+Velocity of the observer with respect to the Local Group in the
+direction of the target.
+
+  $vlsrd = $c->vlg();
+
+=cut
+
+sub vlg {
+  my $self = shift;
+  my ($ra, $dec) = $self->radec;
+  return (Astro::SLA::slaRvlg( $ra, $dec ) + $self->vhelio);
+}
+
+=back
+
 =begin __PRIVATE_METHODS__
 
 =head2 Private Methods
@@ -1873,6 +2307,44 @@ sub _isdt {
   }
 }
 
+=item B<_normalise_vframe>
+
+Convert an input string representing a velocity frame, to
+a standardised form recognized by the software. In most cases,
+the string is upper cased and reduced two the first 3 characters.
+LSRK and LSRD are special-cased. LSR is converted to LSRK.
+
+ $frame = $c->_normalise_vframe( $in );
+
+Unrecognized or undefined frames trigger an exception.
+
+=cut
+
+sub _normalise_vframe {
+  my $self = shift;
+  my $in = shift;
+
+  croak "Velocity frame not defined. Can not normalise" unless defined $in;
+
+  # upper case
+  $in = uc( $in );
+
+  # LSRK or LSRD need no normalisation
+  return $in if ($in eq 'LSRK' || $in eq 'LSRD' || $in eq 'LG');
+
+  # Truncate
+  my $trunc = substr( $in, 0, 3 );
+
+  # Verify
+  croak "Unrecognized velocity frame '$trunc'"
+    unless $trunc =~ /^(GEO|TOP|HEL|LSR|GAL)/;
+
+  # special case
+  $trunc = 'LSRK' if $trunc eq 'LSR';
+
+  # okay
+  return $trunc;
+}
 
 =back
 

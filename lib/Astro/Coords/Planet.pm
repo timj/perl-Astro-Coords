@@ -19,6 +19,7 @@ for planets..
 use 5.006;
 use strict;
 use warnings;
+use Carp;
 
 our $VERSION = '0.03';
 
@@ -212,10 +213,47 @@ sub apparent {
 	  new Astro::Coords::Angle($dec_app, units => 'rad'));
 }
 
+=item B<rv>
+
+Radial velocity of the planet relative to the Earth geocentre.
+
+=cut
+
+sub rv {
+  croak "Not yet implemented planetary radial velocities";
+}
+
+=item B<vdefn>
+
+Velocity definition. Always 'RADIO'.
+
+=cut
+
+sub vdefn {
+  return 'RADIO';
+}
+
+=item B<vframe>
+
+Velocity reference frame. Always 'GEO'.
+
+=cut
+
+sub vframe {
+  return 'GEO';
+}
+
+=back
+
+=begin __PRIVATE_METHODS__
+
+=over 4
+
 =item B<_default_horizon>
 
-Returns the default horizon. For the sun returns Astro::Coords::SUN_RISE_SET.
-For the Moon returns:
+Internal helper method for C<rise_time> and C<set_time>. Returns the
+default horizon. For the sun returns Astro::Coords::SUN_RISE_SET.  For
+the Moon returns:
 
   -(  0.5666 deg + moon radius + moon's horizontal parallax )
 
@@ -263,6 +301,8 @@ sub _default_horizon {
 }
 
 =back
+
+=end __PRIVATE_METHODS__
 
 =head1 NOTES
 
