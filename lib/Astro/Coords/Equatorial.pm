@@ -370,7 +370,7 @@ sub dec {
   $par = 0 unless defined $par;
 
   my $dec = $self->dec2000();
-  if ($pm[0] != 1 || $pm[1] != 0 || $par != 0) {
+  if ($pm[0] != 0 || $pm[1] != 0 || $par != 0) {
     # We have proper motions
     my $ra = $self->ra2000();
 
@@ -712,12 +712,12 @@ sub _apparent {
   my $par = $self->parallax;
   my @pm = $self->pm;
 
-  my ($pm1, $pm2) = (@pm ? @pm : (0,0));
+  @pm = (0,0) unless @pm;
   $par = 0.0 unless defined $par;
 
   Astro::SLA::slaMap( $ra, $dec,
-		      Astro::SLA::DAS2R * $pm1,
-		      Astro::SLA::DAS2R * $pm2, $par, 0.0, 2000.0, $mjd,
+		      Astro::SLA::DAS2R * $pm[0],
+		      Astro::SLA::DAS2R * $pm[1], $par, 0.0, 2000.0, $mjd,
 		      my $ra_app, my $dec_app);
 
   # Convert from observed to apparent place
