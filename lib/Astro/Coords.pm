@@ -316,6 +316,24 @@ sub usenow {
   return $self->{UseNow};
 }
 
+=item B<comment>
+
+A textual comment associated with the coordinate (optional).
+Defaults to the empty string.
+
+  $comment = $c->comment;
+  $c->comment("An inaccurate coordinate");
+
+=cut
+
+sub comment {
+  my $self = shift;
+  if (@_) {
+    $self->{Comment} = shift;
+  }
+  return $self->{Comment};
+}
+
 =back
 
 =head2 General Methods
