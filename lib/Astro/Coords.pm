@@ -517,6 +517,42 @@ sub array {
   croak "The method array() must be subclassed\n";
 }
 
+=item B<distance>
+
+Calculate the distance (on the tangent plane) between the current
+coordinate and a supplied coordinate.
+
+  $dist = $c->distance( $c2 );
+  @dist = $c->distance( $c2 );
+
+The distance is returned in radians (but should be some form of angular
+object as should all of the RA and dec coordinates). In list context returns
+the individual "x" and "y" offsets (in radians). In scalar context returns the
+distance.
+
+Returns undef if there was an error during the calculation (e.g. because
+the new coordinate was too far away).
+
+=cut
+
+sub distance {
+  my $self = shift;
+  my $offset = shift;
+
+  Astro::SLA::slaDs2tp($offset->ra_app, $offset->dec_app,
+		       $self->ra_app, $self->dec_app,
+		       my $xi, my $eta, my $j);
+
+  return () unless $j == 0;
+
+  if (wantarray) {
+    return ($xi, $eta);
+  } else {
+    return ($xi**2 + $eta**2)**0.5;
+  }
+}
+
+
 =item B<status>
 
 Return a status string describing the current coordinates.

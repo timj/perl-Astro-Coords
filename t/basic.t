@@ -1,7 +1,7 @@
 use strict;
 use Test;
 
-BEGIN { plan tests => 70 }
+BEGIN { plan tests => 71 }
 
 use Astro::Coords;
 use Astro::Telescope;
@@ -16,6 +16,13 @@ print "#J2000: $c\n";
 # Compare with J2000 values
 ok("15:25:7.35", $c->ra(format=>'s'));
 ok("-0:23:35.76", $c->dec(format=>'s'));
+
+# Calculate distance
+my $c2 = new Astro::Coords(ra => "15:22:33.3",
+	                   dec => "-0:14:4.5",
+			   type => "B1950");
+
+ok(sprintf("%.1f",scalar($c->distance($c2))*Astro::SLA::DR2AS), '60.0');
 
 # Set telescope
 my $tel = new Astro::Telescope('JCMT');
