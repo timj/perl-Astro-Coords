@@ -86,7 +86,7 @@ use Astro::Coords::Interpolated;
 use Astro::Coords::Fixed;
 use Astro::Coords::Calibration;
 
-use Time::Piece  '1.00'; # override gmtime
+use Time::Piece  qw/ :override /, '1.00'; # override gmtime
 
 =head1 METHODS
 
@@ -698,6 +698,76 @@ sub status {
   $string .= "LST: ". $self->_cvt_fromrad($self->_cvt_tohrs(\$fmt,$self->_lst),$fmt) ."\n";
 
   return $string;
+}
+
+=item B<calculate>
+
+Calculate target positions for a range of times.
+
+  @data = $c->calculate( start => $start,
+			 end => $end,
+			 inc => $increment,
+		         units => 'deg'
+		       );
+
+The start and end times are Time::Piece objects and the increment is a
+Time::Seconds object. If the end time will not necessarily be used
+explictly if the increment does not divide into the total time
+gap exactly. None of the returned times will exceed the end time.
+
+Returns an array of hashes. Each hash contains 
+
+  time [Time::Piece object]
+  elevation
+  azimuth
+  parang
+
+The angles are in the units specified (radians, degrees or sexagesimal).
+
+=cut
+
+sub calculate {
+  my $self = shift;
+
+  my %opts = @_;
+
+  croak "No start time specified" unless exists $opts{start};
+  croak "No end time specified" unless exists $opts{end};
+  croak "No time increment specified" unless exists $opts{inc};
+
+  $opts{units} = 'rad' unless exists $opts{units};
+
+  my @data;
+  my $current = gmtime( $opts{start}->epoch );
+
+  while ( $current->epoch <= $opts{end}->epoch ) {
+
+    # Hash for storing the data
+    my %timestep;
+
+    # store the time
+    $timestep{time} = gmtime( $current->epoch );
+
+    # Set the time in the object
+    # [standard problem with knowing whether we are overriding
+    # another setting]
+    $self->datetime( $current );
+
+    # Now calculate the positions
+    $timestep{elevation} = $self->el( format => $opts{units} );
+    $timestep{azimuth} = $self->az( format => $opts{units} );
+    $timestep{parang} = $self->pa( format => $opts{units} );
+
+    # store the timestep
+    push(@data, \%timestep);
+
+    # increment the time
+    $current += $opts{inc};
+
+  }
+
+  return @data;
+
 }
 
 

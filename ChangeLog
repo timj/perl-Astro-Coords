@@ -1,3 +1,7 @@
+2002-11-10  Tim Jenness  <t.jenness@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm (calculate): Add calculate method
+
 2002-11-08  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm (_cvt_fromrad): Fix "array" formatting of seconds
