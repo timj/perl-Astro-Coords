@@ -730,9 +730,8 @@ Answer is returned as two C<Astro::Coords::Angle> objects.
 
 sub glonglat {
   my $self = shift;
-  my $ra = $self->ra;
-  my $dec = $self->dec;
-  slaEqgal( $ra, $dec, my $long, my $lat );
+  my ($ra,$dec) = $self->radec;
+  Astro::SLA::slaEqgal( $ra, $dec, my $long, my $lat );
   return (new Astro::Coords::Angle($long, units => 'rad', range => '2PI'),
 	  new Astro::Coords::Angle($lat, units => 'rad'));
 }
@@ -750,7 +749,7 @@ Answer is returned as two C<Astro::Coords::Angle> objects.
 sub sglonglat {
   my $self = shift;
   my ($glong, $glat) = $self->glonglat();
-  slaGalsup( $glong, $glat, my $sglong, my $sglat);
+  Astro::SLA::slaGalsup( $glong, $glat, my $sglong, my $sglat);
   return (new Astro::Coords::Angle($sglong, units => 'rad', range => '2PI'),
 	  new Astro::Coords::Angle($sglat, units => 'rad'));
 }
@@ -769,8 +768,7 @@ Answer is returned as two C<Astro::Coords::Angle> objects.
 
 sub ecllonglat {
   my $self = shift;
-  my $ra = $self->ra;
-  my $dec = $self->dec;
+  my ($ra, $dec) = $self->radec;
   Astro::SLA::slaEqecl( $ra, $dec, $self->_mjd_tt, my $long, my $lat );
   return (new Astro::Coords::Angle($long, units => 'rad', range => '2PI'),
 	  new Astro::Coords::Angle($lat, units => 'rad'));
