@@ -1,7 +1,7 @@
 use strict;
 use Test;
 
-BEGIN { plan tests => 9 }
+BEGIN { plan tests => 33 }
 
 use Astro::Coords;
 use Astro::Telescope;
@@ -33,6 +33,12 @@ $c->datetime( $date);
 ok( int($c->el(format=>"d")), 67.0 );
 ok( int($c->az(format=>"d")), 208.0 );
 
+# Get the summary
+my @result = ("RADEC",4.03660853577072,-0.00686380910209873,undef,
+	      undef,undef,undef,undef,undef,undef,undef);
+my @summary = $c->array;
+test_array_elem(\@summary,\@result);
+
 
 # Now for a planet
 $c = new Astro::Coords( planet => "mars" );
@@ -51,4 +57,27 @@ ok( int($c->az(format=>"d")), 145 );
 ok( int($c->ra_app(format=>"h")), 18);
 ok( int($c->dec_app(format=>"d")), -26);
 
+# Get the summary
+@result = ("mars",undef,undef,undef,undef,undef,undef,undef,undef,
+	      undef,undef);
+@summary = $c->array;
+test_array_elem(\@summary,\@result);
+
+
 # No tests for elements yet
+
+
+exit;
+
+sub test_array_elem {
+  my $ansref  = shift;  # The answer you got
+  my $testref = shift;  # The answer you should have got
+
+  # Compare sizes
+  ok($#$ansref, $#$testref);
+
+  for my $i (0..$#$testref) {
+    ok($ansref->[$i], $testref->[$i]);
+  }
+
+}
