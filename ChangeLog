@@ -1,3 +1,8 @@
+2004-01-31  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords/Equatorial.pm: First attempt at parallax and
+	proper motions
+
 2003-11-17 Tim Jenness <tjenness@cpan.org>
 
 	Release v0.05 to CPAN
