@@ -35,6 +35,7 @@ our $VERSION = '0.01';
 
 # Allowed coordinate systems
 @SYSTEMS = qw|
+	      TRACKING
 	      GAL
 	      ICRS
 	      ICRF
@@ -43,6 +44,9 @@ our $VERSION = '0.01';
 	      APP
 	      HADEC
 	      AZEL
+	      MOUNT
+	      OBS
+	      FPLANE
 	      |;
 
 =head1 METHODS
@@ -84,11 +88,14 @@ sub new {
 		   OFFSETS => [ $dc1, $dc2 ],
 		   PROJECTION => undef,
 		   SYSTEM       => undef,
+		   TRACKING_SYSTEM => undef,
 		  }, $class;
 
   # Use accessor to set so that we get validation
   $off->projection( $proj );
   $off->system( $system );
+  $off->tracking_system( $options{tracking_system} )
+    if exists $options{tracking_system};
 
   return $off;
 }
@@ -118,8 +125,9 @@ Coordinate system of this offset. Can be different to the coordinate
 system of the base position.
 
 Allowed values are J2000, B1950, AZEL plus others specified by the
-JAC TCS XML (see L<"SEE ALSO"> section at end). (except for TRACKING,
-OBS, FPLANE and MOUNT).
+JAC TCS XML (see L<"SEE ALSO"> section at end). TRACKING is special
+since it can change, depending on which output coordinate frame is
+in use. See the C<tracking_system> attribute for more details.
 
 =cut
 
@@ -188,6 +196,41 @@ sub projection {
 #        *dc1 = to*cd*sin(da);
 #        *dc2 = to*(sd*cd0 - cd*sd0*cda);
 #     }
+
+=item B<tracking_system>
+
+In some cases, the offset can be specified to be relative to the
+system that the telescope is currently using to track the source.
+This does not necessarily have to be the same as the coordinate
+frame that was originally used to specify the target. For example,
+it is perfectly acceptable to ask a telescope to go to a certain
+Az/El and then ask it to track in RA/Dec.
+
+This method allows the tracking system to be specified
+independenttly of the offset coordinate system. It will only
+be used if the offset is specified to use "TRACKING" (but it allows
+the system to disambiguate an offset that was defined as "TRACKING B1950"
+from an offset that is simply "B1950".
+
+The allowed types are the same as for C<system> except that "TRACKING"
+is not permitted.
+
+=cut
+
+sub tracking_system {
+  my $self = shift;
+  if (@_) { 
+    my $p = shift;
+    $p = uc($p);
+    croak "Tracking System can not itself be 'TRACKING'"
+      if $p eq 'TRACKING';
+    my $match = join("|",@SYSTEMS);
+    croak "Unknown system '$p'"
+      unless $p =~ /^$match$/;
+    $self->{TRACKING_SYSTEM} = $p;
+  }
+  return $self->{TRACKING_SYSTEM};
+}
 
 =head1 SEE ALSO
 
