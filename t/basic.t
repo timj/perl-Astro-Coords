@@ -265,6 +265,13 @@ sub _gmstrptime {
   my $input = shift;
   my $isoformat = "%Y-%m-%dT%T";
   my $time = Time::Piece->strptime($input, $isoformat);
-  my $tzoffset = $time->tzoffset;
-  return scalar(gmtime($time->epoch() + $tzoffset));
+
+  # At some point Time::Piece started assuming UT from strptime
+  # rather than localtime! Only add on the offset if we have a local
+  # time - look inside!
+  if ($time->[Time::Piece::c_islocal]) {
+    my $tzoffset = $time->tzoffset;
+    $time = gmtime($time->epoch() + $tzoffset->seconds);
+  }
+  return $time;
 }
