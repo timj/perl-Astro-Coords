@@ -79,6 +79,7 @@ our $VERSION = '0.02';
 
 use Astro::SLA ();
 use Astro::Coords::Equatorial;
+use Astro::Coords::Elements;
 use Astro::Coords::Planet;
 use Astro::Coords::Fixed;
 use Astro::Coords::Calibration;
@@ -159,30 +160,48 @@ sub new {
   my %args = @_;
 
   my $obj;
+
+  # Always try for a planet object first if $args{planet} is used
+  # (it might be that ra/dec are being specified and planet is a target
+  # name - this allows all the keys to be specified at once and the
+  # object can decide the most likely coordinate object to use
+  # This has the distinct disadvantage that planet is always tried
+  # even though it is rare. We want to be able to throw anything
+  # at this without knowing what we are.
   if (exists $args{planet} and defined $args{planet}) {
-
     $obj = new Astro::Coords::Planet( $args{planet} );
+  }
 
-  } elsif (exists $args{elements} and defined $args{elements}) {
+  # planet did not work. Try something else.
+  unless (defined $obj) {
 
-    $obj = new Astro::Coords::Elements( $args{planet} );
+    # For elements we must not only check for the elements key
+    # but also make sure that that key points to a hash containing
+    # at least the EPOCH key
+    if (exists $args{elements} and defined $args{elements}
+       and UNIVERSAL::isa($args{elements},"HASH") 
+       and exists $args{elements}{EPOCH}
+       and defined $args{elements}{EPOCH}) {
 
-  } elsif (exists $args{type} and defined $args{type}) {
+      $obj = new Astro::Coords::Elements( $args{planet} );
 
-    $obj = new Astro::Coords::Equatorial( %args );
+    } elsif (exists $args{type} and defined $args{type}) {
 
-  } elsif (exists $args{az} or exists $args{el} or exists $args{ha}) {
+      $obj = new Astro::Coords::Equatorial( %args );
 
-    $obj = new Astro::Coords::Fixed( %args );
+    } elsif (exists $args{az} or exists $args{el} or exists $args{ha}) {
 
-  } elsif ( scalar keys %args == 0 ) {
+      $obj = new Astro::Coords::Fixed( %args );
 
-    $obj = new Astro::Coords::Calibration();
+    } elsif ( scalar keys %args == 0 ) {
 
-  } else {
+      $obj = new Astro::Coords::Calibration();
+
+    } else {
     # unable to work out what you are asking for
-    return undef;
+      return undef;
 
+    }
   }
 
   return $obj;
@@ -407,6 +426,10 @@ sub isObservable {
       # Get the current HA
       my $ha = $self->ha;
 
+      # Normalize to +/-pi
+      $ha = Astro::SLA::slaDrange( $ha );
+
+
       if ( $ha > $limits{ha}{min} and $ha < $limits{ha}{max}) {
 	my $dec= $self->dec_app;
 
@@ -448,6 +471,42 @@ sub array {
   my $self = shift;
   croak "The method array() must be subclassed\n";
 }
+
+=item B<status>
+
+Return a status string describing the current coordinates.
+This consists of the current elevation, azimuth, hour angle
+and declination. If a telescope is defined the observability
+of the target is included.
+
+=cut
+
+sub status {
+  my $self = shift;
+  my $string;
+
+  $string .= "Coordinate type:" . $self->type ."\n";
+
+  $string .= "Elevation:      " . $self->el(format=>'d')." deg\n";
+  $string .= "Azimuth  :      " . $self->az(format=>'d')." deg\n";
+  my $ha = Astro::SLA::slaDrange( $self->ha ) * Astro::SLA::DR2H;
+  $string .= "Hour angle:     " . $ha ." hrs\n";
+  $string .= "Apparent dec:   " . $self->dec_app(format=>'d')." deg\n";
+
+  if (defined $self->telescope) {
+    $string .= "Telescope:      " . $self->telescope->fullname . "\n";
+    if ($self->isObservable) {
+      $string .= "The target is currently observable\n";
+    } else {
+      $string .= "The target is not currently observable\n";
+    }
+  }
+
+  $string .= "For time ". $self->datetime ."\n";
+
+  return $string;
+}
+
 
 =item B<_lst>
 
@@ -526,9 +585,6 @@ sub _cvt_tohrs {
   $$fmt = "degrees" if $$fmt =~ /^h/;
   return $rad;
 }
-
-
-=cut
 
 =item B<_cvt_fromrad>
 
@@ -609,6 +665,8 @@ sub _cvt_torad {
   my $units = shift;
   my $input = shift;
   my $hms = shift;
+
+  return undef unless defined $input;
 
   # Clean up the string
   $input =~ s/^\s+//g;
