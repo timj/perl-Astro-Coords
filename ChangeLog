@@ -1,3 +1,8 @@
+2003-08-19  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm (ha_set: Deal with case where source never
+	has a set time 
+
 2003-07-26  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm (_cvt_torad): Issue a warning if the

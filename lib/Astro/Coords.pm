@@ -710,7 +710,8 @@ sub status {
     # Transit time
     $string .= "Time of transit:" . $self->meridian_time ."\n";
     $string .= "Transit El:     " . $self->transit_el(format=>'d')." deg\n";
-    $string .= "Hour Ang. (set):" . $self->ha_set( format => 'hour') ." hrs\n";
+    my $ha_set = $self->ha_set( format => 'hour');
+    $string .= "Hour Ang. (set):" . (defined $ha_set ? $ha_set : '??')." hrs\n";
 
     my $t = $self->rise_time;
     $string .= "Rise time:      " . $t . "\n" if defined $t;
@@ -836,6 +837,9 @@ specifying a different elevation to the horizon (in radians).
 
 Returns a C<Time::Piece> object.
 
+BUG: Does not distinguish a source that never rises from a source
+that never sets.
+
 =cut
 
 sub rise_time {
@@ -843,6 +847,7 @@ sub rise_time {
 
   # Calculate the HA required for setting
   my $ha_set = $self->ha_set( @_, format => 'radians' );
+  return if ! defined $ha_set;
 
   # and convert to seconds
   $ha_set *= Astro::SLA::DR2S;
@@ -873,6 +878,9 @@ elevation to the horizon (in radians).
 
 Returns a C<Time::Piece> object.
 
+BUG: Does not distinguish a source that never rises from a source
+that never sets.
+
 =cut
 
 sub set_time {
@@ -880,6 +888,7 @@ sub set_time {
 
   # Calculate the HA required for setting
   my $ha_set = $self->ha_set( @_, format=> 'radians' );
+  return if ! defined $ha_set;
 
   # and convert to seconds
   $ha_set *= Astro::SLA::DR2S;
@@ -919,6 +928,9 @@ There are predefined elevations for events such as
 Sun rise/set and Twilight (only relevant if your object
 refers to the Sun). See L<"Constants"> for more information.
 
+Returns C<undef> if the target never reaches the specified horizon.
+(maybe it is circumpolar).
+
 =cut
 
 sub ha_set {
@@ -944,6 +956,10 @@ sub ha_set {
   my $cos_ha0 = ( sin($opt{horizon}) - sin($lat)*sin( $dec ) ) /
     ( cos($lat) * cos($dec) );
 
+  # Make sure we have a valid number for the cosine
+  return undef if abs($cos_ha0) > 1;
+
+  # Work out the hour angle for this elevation
   my $ha0 = acos( $cos_ha0 );
 
   # If we are the Sun we need to convert this to solar time
