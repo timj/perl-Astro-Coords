@@ -6,20 +6,27 @@ require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
 use Time::Piece qw/ :override /;
 
+# Force stringification to use colons
+Astro::Coords::Angle->DELIM(':');
+Astro::Coords::Angle::Hour->DELIM(':');
+Astro::Coords::Angle::Hour->NDP(1);
+Astro::Coords::Angle->NDP(1);
+
 my $tel = new Astro::Telescope('JCMT');
 
 # Hard wire a reference date
 my $t  = gmtime( 1077557000 );
-print "# Epoch : ". Astro::SLA::slaEpj( $t->mjd)."\n";
+print "# Epoch : J". Astro::SLA::slaEpj( $t->mjd)."\n";
 
 # RA/Dec in J2000 at 2000.0:     6 14 1.584  +15 9 54.36
 # RA/Dec in J2000 at 2004.1457:  6 14 1.777  +15 9 49.17
 # Proper motion: 739, -1248 milliarcsec/yr
+# COCO says                      6 14 1.788  +15 9 49.18
 my $fs = new Astro::Coords( 
 			   name => "LHS216",
 			   ra => '6 14 1.584',
 			   dec => '15 9 54.36',
-#			   parallax => 0.3,
+			   parallax => 0.3,
 			   pm => [0.739, -1.248 ],
 			   type => 'J2000',
 			   units => 's',
@@ -27,8 +34,11 @@ my $fs = new Astro::Coords(
 $fs->datetime( $t );
 $fs->telescope( $tel );
 
-is( $fs->ra(format=>'s'),  " 06:14:01.79", "RA of LHS 216");
-is( $fs->dec(format=>'s'), " 15:09:49.19", "Dec of LHS216");
+my ($fsra, $fsdec) = $fs->radec;
+$fsra->str_ndp( 3 );
+$fsdec->str_ndp( 2 );
+is( $fsra->string,  "06:14:01.788", "RA of LHS 216");
+is( $fsdec->string, " 15:09:49.19", "Dec of LHS216");
 
 # Test out of SUN/67, section titled "Mean Place Transformations"
 my $c = new Astro::Coords( name => "target",
@@ -36,12 +46,17 @@ my $c = new Astro::Coords( name => "target",
                            dec => '-75 59 27.2',
                            type => 'B1900',
                            epoch => 1963.087,
-                           pm => [ -0.468, 0.103 ],
+                           pm => [ (-0.0312 * &Astro::SLA::DS2R * &Astro::SLA::DR2AS), 0.103 ],
                            parallax => 0.062,
                            units => 's',
                          );
+
+# epoch of observation is J1994.35
 $t = gmtime( 768427560 );
 $c->datetime( $t );
+print "# Epoch : J". Astro::SLA::slaEpj( $t->mjd)."\n";
+# Sun67 says 16 23 07.901 -76 13 58.87
+is( $c->ra( format => 's' ), "16:23:07.9", "RA for SUN/67 test");
+is( $c->dec( format => 's' ), "-76:13:58.9", "Dec for SUN/67 test");
 
-is( $c->ra( format => 's' ), " 16:23:07.89", "RA for SUN/67 test");
-is( $c->dec( format => 's' ), "-76:13:58.93", "Dec for SUN/67 test");
+print "# Time is $t\n";
