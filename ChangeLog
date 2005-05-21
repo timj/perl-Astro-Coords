@@ -1,3 +1,9 @@
+2005-05-20  Tim Jenness  <timj@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm: Pre-create a DateTime::TimeZone object
+	rather than using a 'UTC' string. This improves performance when
+	using many calls to the datetime method.
+
 2005-04-06  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords/Elements.pm (apparent): Include the target name

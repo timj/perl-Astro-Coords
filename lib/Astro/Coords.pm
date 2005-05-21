@@ -142,6 +142,9 @@ use constant AU2KM => 149.59787066e6;
 # Speed of light ( km/s )
 use constant CLIGHT => 2.99792458e5;
 
+# UTC TimeZone
+use constant UTC => new DateTime::TimeZone( name => 'UTC' );
+
 =head1 METHODS
 
 =head2 Constructor
@@ -359,7 +362,7 @@ sub datetime {
   if (defined $self->{DateTime} && ! $self->usenow) {
     return $self->{DateTime};
   } else {
-    return DateTime->now( time_zone => 'UTC' );
+    return DateTime->now( time_zone => UTC );
   }
 }
 
@@ -2160,7 +2163,7 @@ sub _clone_time {
     return Time::Piece::gmtime( $input->epoch );
   } elsif (UNIVERSAL::isa($input, "DateTime")) {
     return DateTime->from_epoch( epoch => $input->epoch, 
-			         time_zone => 'UTC' );
+			         time_zone => UTC );
   }
   return;
 }
