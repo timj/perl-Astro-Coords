@@ -1,3 +1,8 @@
+2005-07-08  Brad Cavanagh  <b.cavanagh@jach.hawaii.edu>
+
+	* lib/Astro/Coords.pm: Factor out RA/Dec lookup when calculating
+	distance to reduce number of calls to radec() by 50%.
+	
 2005-05-20  Tim Jenness  <timj@jach.hawaii.edu>
 
 	* lib/Astro/Coords.pm: Pre-create a DateTime::TimeZone object
