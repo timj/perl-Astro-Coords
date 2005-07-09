@@ -1029,8 +1029,11 @@ sub distance {
   my $self = shift;
   my $offset = shift;
 
-  Astro::SLA::slaDs2tp($offset->ra_app, $offset->dec_app,
-		       $self->ra_app, $self->dec_app,
+  my( $ra, $dec ) = $self->radec;
+  my( $ra_off, $dec_off ) = $offset->radec;
+
+  Astro::SLA::slaDs2tp($ra_off, $dec_off,
+		       $ra, $dec,
 		       my $xi, my $eta, my $j);
 
   return () unless $j == 0;
