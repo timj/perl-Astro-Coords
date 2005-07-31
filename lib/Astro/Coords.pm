@@ -108,7 +108,7 @@ use Carp;
 use vars qw/ $DEBUG /;
 $DEBUG = 0;
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 use Math::Trig qw/ acos /;
 use Astro::SLA ();
@@ -1194,16 +1194,22 @@ sub calculate {
     $self->datetime( $current );
 
     # Now calculate the positions
-    $timestep{elevation} = $self->el( format => $opt{units} );
-    $timestep{azimuth} = $self->az( format => $opt{units} );
-    $timestep{parang} = $self->pa( format => $opt{units} );
-    $timestep{lst}    = $self->_lst();
+    ($timestep{azimuth}, $timestep{elevation}) = $self->azel();
+    $timestep{parang} = $self->pa;
+
+    if (defined $opt{units} ) {
+      $timestep{azimuth} = $timestep{azimuth}->in_format( $opt{units} );
+      $timestep{elevation} = $timestep{elevation}->in_format( $opt{units} );
+      $timestep{parang} = $timestep{parang}->in_format( $opt{units} );
+    }
+
+    $timestep{lst} = $self->_lst();
 
     # store the timestep
     push(@data, \%timestep);
 
     # increment the time
-    $current += $inc;
+    $current = _inc_time( $current, $inc );
 
   }
 
@@ -1213,12 +1219,12 @@ sub calculate {
 
 =item B<rise_time>
 
-Time at which the target will appear above the horizon. By default the calculation is for the next rise time relative to the current reference time. 
-If
-the "event" key is used, this can control which rise time will be
-returned. For event=1, this indicates the following rise (the default),
-event=-1 indicates a previous rise and event=0 indicates the nearest
-source rising to the current reference time.
+Time at which the target will appear above the horizon. By default the
+calculation is for the next rise time relative to the current
+reference time.  If the "event" key is used, this can control which
+rise time will be returned. For event=1, this indicates the following
+rise (the default), event=-1 indicates a previous rise and event=0
+indicates the nearest source rising to the current reference time.
 
 If the "nearest" key is set in the argument hash, this is synonymous
 with event=0 and supercedes the event key.
@@ -2169,6 +2175,41 @@ sub _clone_time {
 			         time_zone => UTC );
   }
   return;
+}
+
+=item B<_inc_time>
+
+Internal routine to increment the supplied time by the supplied
+number of seconds (either as an integer or the native duration class).
+
+  $date = _inc_time( $date, $seconds );
+
+Does return the date object since not all date objects can be modified inplace.
+Does not guarantee to return a new cloned object though.
+
+=cut
+
+sub _inc_time {
+  my $date = shift;
+  my $delta = shift;
+
+  # convert to integer seconds
+  $delta = $delta->seconds() if UNIVERSAL::can( $delta, "seconds" );
+
+  # Check for Time::Piece, else assume DateTime
+  if (UNIVERSAL::isa( $date, "Time::Piece" ) ) {
+    # can not add time in place
+    $date += $delta;
+  } else {
+    # increment the time (this happens in place)
+    if (abs($delta) > 1) {
+      $date->add( seconds => "$delta" );
+    } else {
+      $date->add( nanoseconds => ( $delta * 1E9 ) );
+    }
+  }
+
+  return $date;
 }
 
 =item B<_cmp_time>
