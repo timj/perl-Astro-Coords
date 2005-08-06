@@ -1,3 +1,11 @@
+2005-08-06  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Fixed.pm: Override default meridian_time and
+	transit_el calculations for fixed sources.
+
+	* lib/Astro/Coords.pm (status): Allow meridian time and transit
+	elevation to be undef.
+
 2005-07-30  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords.pm (calculate): Fix missing DateTime check in

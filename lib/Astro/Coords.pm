@@ -1080,8 +1080,13 @@ sub status {
     $string .= "Apparent dec:   " . $dec_app->string ."\n";
 
     # Transit time
-    $string .= "Time of next transit:" . $self->meridian_time->datetime ."\n";
-    $string .= "Transit El:     " . $self->transit_el(format=>'d')." deg\n";
+    my $mt = $self->meridian_time;
+    $string .= "Time of next transit: " . 
+      (defined $mt ? $mt->datetime : "<never>") ."\n";
+
+    my $t_el = $self->transit_el(format=>'d');
+    $string .= "Transit El:     " . (defined $t_el ? "$t_el deg"
+				     : "<undefined>") ."\n";
     my $ha_set = $self->ha_set( format => 'hour');
     $string .= "Hour Ang. (set):" . (defined $ha_set ? $ha_set : '??')." hrs\n";
 

@@ -297,6 +297,36 @@ sub hadec {
 	  new Astro::Coords::Angle( $dec_app, units => 'rad'));
 }
 
+=item B<ha_set>
+
+For a fixed source, the setting Hour Angle has no meaning.
+
+=cut
+
+sub ha_set {
+  return ();
+}
+
+=item B<meridian_time>
+
+Meridian time is not defined for a fixed source.
+
+=cut
+
+sub meridian_time {
+  return ();
+}
+
+=item B<transit_el>
+
+Transit elevation is not defined for a fixed source. Always returns undef.
+
+=cut
+
+sub transit_el {
+  return ();
+}
+
 =back
 
 =head1 NOTES
