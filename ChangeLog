@@ -1,3 +1,9 @@
+2005-08-24  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Equatorial.pm (set_vel_pars): Add ability to
+	set the velocity parameters after object construction (but only in
+	base class)
+
 2005-08-06  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords/Fixed.pm: Override default meridian_time and

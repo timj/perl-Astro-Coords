@@ -697,6 +697,26 @@ sub summary {
   return sprintf("%-16s  %-12s  %-13s  J2000",$name,$ra, $dec);
 }
 
+=item B<set_vel_pars>
+
+Set the velocity parameters.
+
+  $c->set_vel_pars( $rv, $vdefn, $vframe );
+
+This does not include redshift.
+
+=cut
+
+sub set_vel_pars {
+  my $self = shift;
+  my ($rv, $vdefn, $vframe) = @_;
+
+  $self->_set_rv( $rv ) if defined $rv;
+  $self->_set_vdefn( $vdefn ) if defined $vdefn;
+  $self->_set_vframe( $vframe ) if defined $vframe;
+
+  return;
+}
 
 =back
 
