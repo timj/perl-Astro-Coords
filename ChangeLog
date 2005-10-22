@@ -1,7 +1,11 @@
+2005-10-21  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords.pm (vbary): Add support for Barycentric velocities.
+
 2005-08-24  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords/Equatorial.pm (set_vel_pars): Add ability to
-	set the velocity parameters after object construction (but only in
+	set the velocity parameters after object construction (but not in
 	base class)
 
 2005-08-06  Tim Jenness  <tjenness@cpan.org>
@@ -19,8 +23,8 @@
 
 2005-07-08  Brad Cavanagh  <b.cavanagh@jach.hawaii.edu>
 
-	* lib/Astro/Coords.pm: Factor out RA/Dec lookup when calculating
-	distance to reduce number of calls to radec() by 50%.
+	* lib/Astro/Coords.pm (distance): Factor out RA/Dec lookup when
+	calculating distance to reduce number of calls to radec() by 50%.
 	
 2005-05-20  Tim Jenness  <timj@jach.hawaii.edu>
 

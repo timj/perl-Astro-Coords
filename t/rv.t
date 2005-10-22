@@ -64,6 +64,8 @@ is( sprintf( '%.1f', ( 90 - $el)), 38.8,'Check zenith distance');
 is( sprintf('%.2f',$c->verot), -0.24,
     'Obs velocity wrt to the Earth geocentre in dir of target');
 is( sprintf('%.2f',$c->vhelio), 23.38, 'Obs velocity wrt the Sun in direction of target');
+print "# Barycentric velocity: ". $c->vbary. " cf Heliocentric: ".
+  $c->vhelio."\n";
 is( sprintf('%.2f',$c->vlsrk),  10.13, 'Obs velocity wrt LSRK in direction of target');
 is( sprintf('%.2f',$c->vlsrd), 11.66, 'Obs velocity wrt LSRD in direction of target');
 is( sprintf('%.2f',$c->vgalc), 4.48, 'Obs velocity wrt Galaxy in direction of target');
