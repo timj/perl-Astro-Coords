@@ -1782,18 +1782,21 @@ sub _set_vdefn {
 
 =item B<vframe>
 
-The velocity frame used to specify the radial velocity. This attribute is readonly
-and set during object construction. Abbreviations are used for the first 3 characters
-of the standard frames (4 to distinguish LSRK from LSRD):
+The velocity frame used to specify the radial velocity. This attribute
+is readonly and set during object construction. Abbreviations are used
+for the first 3 characters of the standard frames (4 to distinguish
+LSRK from LSRD):
 
   HEL  - Heliocentric (the Sun)
-  GEO  - Geocentric   (Centre of the Earth)
-  TOP  - Topocentric  (Surface of the Earth)
+  BAR  - Barycentric (the Solar System barycentre)
+  GEO  - Geocentric (Centre of the Earth)
+  TOP  - Topocentric (Surface of the Earth)
   LSR  - Kinematical Local Standard of Rest
   LSRK - As for LSR
   LSRD - Dynamical Local Standard of Rest
 
-The usual definition for star catalogues is Heliocentric. Default is Heliocentric.
+The usual definition for star catalogues is Heliocentric. Default is
+Heliocentric.
 
 =cut
 
@@ -1834,7 +1837,7 @@ sub obsvel {
 
   # Now we need to calculate the observer velocity in the
   # target frame
-  my $vobs = $self->vdiff( '', 'TOPO' );
+  my $vobs = $self->vdiff( '', 'TOP' );
 
   # Total velocity between observer and target
   my $vtotal = $vobs + $rv;
@@ -1926,7 +1929,7 @@ to report the difference in velocity between two arbitrary frames.
   $vd = $c->vdiff( 'HEL', 'LSRK' );
 
 Note that the velocity methods all report their velocity relative to the
-observer (ie topocentric correction), equivalent to specifiying 'TOPO'
+observer (ie topocentric correction), equivalent to specifiying 'TOP'
 as the second argument to vdiff.
 
 The two arguments are mandatory but if either are 'undef' they are converted
@@ -1959,6 +1962,7 @@ sub vdiff {
   $vel{TOP} = 0;
   $vel{GEO} = $self->verot();
   $vel{HEL} = $self->vhelio;
+  $vel{BAR} = $self->vbary;
   $vel{LSRK} = $self->vlsrk;
   $vel{LSRD} = $self->vlsrd;
   $vel{GAL}  = $self->vgalc;
@@ -2003,10 +2007,17 @@ Velocity component of the Earth's orbit in the direction of the target
 
   $vorb = $c->vorb;
 
+By default calculates the velocity component relative to the Sun.
+If an optional parameter is true, the calculation will be relative to
+the solary system barycentre.
+
+  $vorb = $c->vorb( $usebary );
+
 =cut
 
 sub vorb {
   my $self = shift;
+  my $usebary = shift;
 
   # Earth velocity (and position)
   my @vb = (0,0,0);
@@ -2015,14 +2026,17 @@ sub vorb {
   my @ph = (0,0,0);
   Astro::SLA::slaEvp($self->_mjd_tt(), 2000.0,@vb,@pb,@vh,@ph);
 
+  # Barycentric or heliocentric velocity?
+  my @v = ( $usebary ? @vb : @vh );
+
   # Convert spherical source coords to cartesian
   my ($ra, $dec) = $self->radec;
   my @cart = (0,0,0);
   Astro::SLA::slaDcs2c($ra,$dec,@cart);
 
   # Velocity due to Earth's orbit is scalar product of the star position
-  # with the Earth's heliocentric velocity
-  my $vorb = - Astro::SLA::slaDvdv(@cart,@vh)* AU2KM;
+  # with the Earth's velocity
+  my $vorb = - Astro::SLA::slaDvdv(@cart,@v)* AU2KM;
   return $vorb;
 }
 
@@ -2040,6 +2054,22 @@ Earth's rotation.
 sub vhelio {
   my $self = shift;
   return ($self->verot + $self->vorb);
+}
+
+=item B<vbary>
+
+Velocity of the observer with respect to the Solar System Barycentre in
+the direction of the target (ie the barycentric frame).  This is
+simply the sum of the component due to the Earth's orbit and the
+component due to the Earth's rotation.
+
+ $vhel = $c->vbary;
+
+=cut
+
+sub vbary {
+  my $self = shift;
+  return ($self->verot + $self->vorb(1));
 }
 
 =item B<vlsrk>
@@ -2666,7 +2696,7 @@ sub _normalise_vframe {
 
   # Verify
   croak "Unrecognized velocity frame '$trunc'"
-    unless $trunc =~ /^(GEO|TOP|HEL|LSR|GAL)/;
+    unless $trunc =~ /^(GEO|TOP|HEL|LSR|GAL|BAR)/;
 
   # special case
   $trunc = 'LSRK' if $trunc eq 'LSR';
