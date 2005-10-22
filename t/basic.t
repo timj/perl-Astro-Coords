@@ -294,8 +294,8 @@ is(sprintf("%.1f",$c->el(format => 'd')), '22.1',"Hale-Bopp elevation");
 my ($ra_bopp, $dec_bopp) = $c->radec();
 $ra_bopp->str_ndp( 0 );
 $dec_bopp->str_ndp( 1 );
-is($ra_bopp->string,"08:09:08","Hale-Bopp RA");
-is($dec_bopp->string,"-47:25:27.5","Hale-Bopp Dec");
+is($ra_bopp->string,"08:09:08","Hale-Bopp RA (J2000)");
+is($dec_bopp->string,"-47:25:27.4","Hale-Bopp Dec (J2000)");
 
 my $s = $c->status;
 my @s = split /\n/,$s;
