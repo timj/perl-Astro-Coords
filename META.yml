@@ -1,0 +1,17 @@
+# http://module-build.sourceforge.net/META-spec.html
+#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
+name:         Astro-Coords
+version:      0.11
+version_from: 
+license:      perl
+installdirs:  site
+requires:
+    Astro::SLA:                    0.95
+    Astro::Telescope:              0.60
+    DateTime:                      0
+    Scalar::Util:                  1.13
+    Test::More:                    0
+    Time::Piece:                   1.02
+
+distribution_type: module
+
