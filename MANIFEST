@@ -20,3 +20,4 @@ lib/Astro/Coords/Interpolated.pm
 lib/Astro/Coords/Offset.pm
 lib/Astro/Coords/Angle.pm
 lib/Astro/Coords/Angle/Hour.pm
+META.yml                                 Module meta-data (added by MakeMaker)
