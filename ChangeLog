@@ -1,3 +1,10 @@
+2005-10-28  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords.pm (datetime_is_unsafe): Implement caching
+	scheme for static dates. datetime_is_unsafe() method is required
+	if the datetime object is to be tweaked externally. Large speed
+	improvements.
+
 2005-10-21  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords.pm (vbary): Add support for Barycentric velocities.

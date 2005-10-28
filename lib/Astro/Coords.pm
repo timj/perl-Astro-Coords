@@ -318,6 +318,8 @@ sub telescope {
     my $tel = shift;
     return undef unless UNIVERSAL::isa($tel, "Astro::Telescope");
     $self->{Telescope} = $tel;
+    # Telescope is part of the caching scheme
+    $self->_calc_cache_key();
   }
   return $self->{Telescope};
 }
@@ -345,6 +347,12 @@ set to false.
 
 A copy of the input argument is created, guaranteeing a UTC representation.
 
+Note that due to the possibility of an optimized caching scheme being
+used, you should not adjust this object after it has been cloned. The
+object is assumed to be immutable by the module internals. If you
+really do require that it be adjusted externally, use the
+C<datetime_is_unsafe> method to indicate this to the module.
+
 =cut
 
 sub datetime {
@@ -358,6 +366,9 @@ sub datetime {
       if (defined $time && !UNIVERSAL::can($time, "mjd"));
     $self->{DateTime} = _clone_time( $time );
     $self->usenow(0);
+    # Changing usenow will have forced a recalculation of the cache key
+    # so no update is required here
+    # $self->_calc_cache_key;
   }
   if (defined $self->{DateTime} && ! $self->usenow) {
     return $self->{DateTime};
@@ -399,8 +410,30 @@ sub usenow {
   my $self = shift;
   if (@_) {
     $self->{UseNow} = shift;
+    # Since this affects caching we need to force a key check if this value
+    # is updated
+    $self->_calc_cache_key();
   }
   return $self->{UseNow};
+}
+
+=item B<datetime_is_unsafe>
+
+If true, indicates that the DateTime object stored in this object is
+not guranteed to be immutable by the externally user. This effectively
+turns off the internal cache.
+
+  $c->datetime_is_unsafe();
+
+=cut
+
+sub datetime_is_unsafe {
+  my $self = shift;
+  if (@_) {
+    $self->{DATETIME_IS_UNSAFE} = shift;
+    $self->_calc_cache_key;
+  }
+  return $self->{DATETIME_IS_UNSAFE};
 }
 
 =item B<comment>
@@ -475,13 +508,21 @@ as C<Astro::Coords::Angle> objects.
 
 sub azel {
   my $self = shift;
-  my $ha = $self->ha;
-  my $dec = $self->dec_app;
-  my $tel = $self->telescope;
-  my $lat = ( defined $tel ? $tel->lat : 0.0);
-  Astro::SLA::slaDe2h( $ha, $dec, $lat, my $az, my $el );
-  $az = new Astro::Coords::Angle( $az, units => 'rad', range => '2PI' );
-  $el = new Astro::Coords::Angle( $el, units => 'rad' );
+
+  my ($az,$el) = $self->_cache_read( "AZ", "EL" );
+
+  if (!defined $az || !defined $el) {
+
+    my $ha = $self->ha;
+    my $dec = $self->dec_app;
+    my $tel = $self->telescope;
+    my $lat = ( defined $tel ? $tel->lat : 0.0);
+    Astro::SLA::slaDe2h( $ha, $dec, $lat, $az, $el );
+    $az = new Astro::Coords::Angle( $az, units => 'rad', range => '2PI' );
+    $el = new Astro::Coords::Angle( $el, units => 'rad' );
+
+    $self->_cache_write( "AZ" => $az, "EL" => $el );
+  }
   return ($az, $el);
 }
 
@@ -501,7 +542,10 @@ sub ra_app {
   my $self = shift;
   my %opt = @_;
 
-  my $ra = ($self->apparent)[0];
+  my $ra = $self->_cache_read( "RA_APP" );
+  if (!defined $ra) {
+    $ra = ($self->apparent)[0];
+  }
   return $ra->in_format( $opt{format} );
 }
 
@@ -521,7 +565,10 @@ and default calling convention.
 sub dec_app {
   my $self = shift;
   my %opt = @_;
-  my $dec = ($self->apparent)[1];
+  my $dec = $self->_cache_read( "DEC_APP" );
+  if (!defined $dec) {
+    $dec = ($self->apparent)[1];
+  }
   return $dec->in_format( $opt{format} );
 }
 
@@ -546,10 +593,13 @@ and default calling convention.
 sub ha {
   my $self = shift;
   my %opt = @_;
-  my $ha = $self->_lst - $self->ra_app;
 
-  # Always normalize?
-  $ha = new Astro::Coords::Angle::Hour( $ha, units => 'rad', range => 'PI' );
+  my $ha = $self->_cache_read( "HA" );
+  if (!defined $ha) {
+    $ha = $self->_lst - $self->ra_app;
+    # Always normalize?
+    $ha = new Astro::Coords::Angle::Hour( $ha, units => 'rad', range => 'PI' );
+  }
   return $ha->in_format( $opt{format} );
 }
 
@@ -568,7 +618,10 @@ If no telescope is defined the equator is used.
 sub az {
   my $self = shift;
   my %opt = @_;
-  my ($az, $el) = $self->azel();
+  my $az = $self->_cache_read( "AZ" );
+  if (!defined $az) {
+    ($az, my $el) = $self->azel();
+  }
   return $az->in_format( $opt{format} );
 }
 
@@ -587,7 +640,11 @@ If no telescope is defined the equator is used.
 sub el {
   my $self = shift;
   my %opt = @_;
-  my ($az, $el) = $self->azel();
+  my $el = $self->_cache_read( "EL" );
+
+  if (!defined $el) {
+    (my $az, $el) = $self->azel();
+  }
   return $el->in_format( $opt{format} );
 }
 
@@ -2443,6 +2500,12 @@ sub _iterative_el {
   # See what type of date object we are dealing with
   my $use_dt = $self->_isdt();
 
+  # We are tweaking DateTime objects without the cache knowing about
+  # it (because it is faster than lots of object cloning) so we must
+  # turn off caching
+  my $old_unsafe = $self->datetime_is_unsafe;
+  $self->datetime_is_unsafe( 1 );
+
   # Calculate current elevation
   my $el = $self->el;
 
@@ -2538,7 +2601,10 @@ sub _iterative_el {
 	  $reverse = 1 if ($diff_to_prev / $diff_to_curr < 0);
 	} else {
 	  # abort if the inc is too small
-	  return undef if $inc < $smallinc;
+	  if ($inc < $smallinc) {
+	    $self->datetime_is_unsafe( $old_unsafe );
+	    return undef;
+	  }
 
 	  # if we have not straddled, we reverse if the previous el
 	  # is closer than this el
@@ -2589,6 +2655,10 @@ sub _iterative_el {
     }
 
   }
+
+  # reset the unsafeness level
+  $self->datetime_is_unsafe( $old_unsafe );
+
   return 1;
 }
 
@@ -2813,6 +2883,155 @@ sub _j2000_to_byyyy {
 
   }
   return ($rb, $db);
+}
+
+=back
+
+=head2 Caching Routines
+
+These methods provide a means of caching calculated answers for a fixed
+epoch. It is usually faster to lookup a pre-calculated value for a given
+time than it is to calculate that time.
+
+The cache is per-object.
+
+=over 4
+
+=item B<_cache_write>
+
+Add the supplied values to the cache. Values can be provided in a hash.
+The choice of key names is up to the caller.
+
+  $c->_cache_write( AZ => $az, EL => $el );
+
+Nothing is stored if the date stored in the object is not fixed.
+
+=cut
+
+sub _cache_write {
+  my $self = shift;
+  my %add = @_;
+
+  my $primary = $self->_cache_key;
+  return () unless defined $primary;
+
+  my $C = $self->_cache_ref;
+
+  if (!exists $C->{$primary}) {
+    $C->{$primary} = {};
+  }
+
+  my $local = $C->{$primary};
+
+  for my $key (keys %add) {
+    $local->{$key} = $add{$key};
+  }
+  return;
+}
+
+=item B<_cache_read>
+
+Retrieve value(s) from the cache. Returns undef if no value is available.
+
+  ($az, $el) = $c->_cache_read( "AZ", "EL" );
+
+In scalar context, returns the first value.
+
+=cut
+
+sub _cache_read {
+  my $self = shift;
+  my @keys = @_;
+
+  my $primary = $self->_cache_key;
+  return () unless defined $primary;
+
+  my $C = $self->_cache_ref;
+
+  return () unless exists $C->{$primary};
+  my $local = $C->{$primary};
+  return () unless defined $local;
+
+  my @answer =  map { $local->{$_} } @keys;
+#  print "Caller: ". join(":", caller() ) ."\n";
+#  print "Getting cache values for ". join(":",@keys) ."\n";
+#  print "Getting cache values for ". join(":",@answer) ."\n";
+  return (wantarray() ? @answer : $answer[0] );
+}
+
+=item B<_calc_cache_key>
+
+Internal (to the cache system) function for calculating the cache
+key for the current epoch.
+
+  $key = $c->_calc_cache_key;
+
+Use the _cache_key() method to return the result.
+
+Caching is disabled if C<datetime_is_unsafe>, C<usenow> or no
+DateTime object is available.
+
+=cut
+
+sub _calc_cache_key {
+  my $self = shift;
+#  return; # This will disable caching
+
+  # if we have a floating clock we do not want to cache
+  if (!$self->has_datetime || $self->usenow || $self->datetime_is_unsafe) {
+    $self->_cache_key( undef );
+    return;
+  }
+
+  # The cache key currently uses the time and the telescope name
+  my $dt = $self->datetime;
+  my $tel = $self->telescope;
+  my $telName = (defined $tel ? $tel->name : "NONE" );
+
+  print "# Calculating cache key using $telName and ". $dt->epoch ."\n"
+    if $DEBUG;
+
+  # usually epoch is quicker to generate than ISO date but we have to
+  # be careful about fractional seconds in DateTime (Time::Piece can
+  # not do it)
+
+  # Use date + telescope name as key
+  $self->_cache_key($telName . "_" . $dt->epoch); 
+}
+
+=item B<_cache_key>
+
+Retrieve the current key suitable for caching results.
+The key should have been calculated using _calc_cache_key().
+Can be undef if caching is disabled.
+
+  $key = $c->_cache_key;
+
+=cut
+
+sub _cache_key {
+  my $self = shift;
+  if (@_) {
+    $self->{_CACHE_KEY} = shift;
+  }
+  return $self->{_CACHE_KEY};
+}
+
+=item B<_cache_ref>
+
+Returns reference to cache hash. Internal internal.
+
+=cut
+
+{
+  my $KEY = "__AC_CACHE";
+  sub _cache_ref {
+    my $self = shift;
+    if (!exists $self->{$KEY} ) {
+      $self->{$KEY} = {};
+    }
+    return $self->{$KEY};
+  }
 }
 
 =back

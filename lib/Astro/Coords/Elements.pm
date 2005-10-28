@@ -315,54 +315,60 @@ Returns empty list on error.
 
 sub apparent {
   my $self = shift;
-  my $tel = $self->telescope;
-  my $long = (defined $tel ? $tel->long : 0.0 );
-  my $lat = (defined $tel ? $tel->lat : 0.0 );
-  my %el = $self->elements;
-  my $jform;
-  if (exists $el{DM} and defined $el{DM}) {
-    # major planets
-    $jform = 1;
-  } elsif (exists $el{AORL} and defined $el{AORL}) {
-    # minor planets
-    $jform = 2;
-    $el{DM} = 0;
-  } else {
-    # comets
-    $jform = 3;
-    $el{DM} = 0;
-    $el{AORL} = 0;
-  }
 
-  # synch epoch if need be
-  if (!exists $el{EPOCH} || !exists $el{EPOCHPERIH}) {
-    if (exists $el{EPOCH}) {
-      $el{EPOCHPERIH} = $el{EPOCH};
+  my ($ra_app,$dec_app) = $self->_cache_read( "RA_APP", "DEC_APP" );
+
+  # not in cache so must calculate it
+  if (!defined $ra_app || !defined $dec_app) {
+
+    my $tel = $self->telescope;
+    my $long = (defined $tel ? $tel->long : 0.0 );
+    my $lat = (defined $tel ? $tel->lat : 0.0 );
+    my %el = $self->elements;
+    my $jform;
+    if (exists $el{DM} and defined $el{DM}) {
+      # major planets
+      $jform = 1;
+    } elsif (exists $el{AORL} and defined $el{AORL}) {
+      # minor planets
+      $jform = 2;
+      $el{DM} = 0;
     } else {
-      $el{EPOCH} = $el{EPOCHPERIH};
+      # comets
+      $jform = 3;
+      $el{DM} = 0;
+      $el{AORL} = 0;
     }
-  }
 
-  # First have to perturb the elements to the current epoch
-  # if we have a minor planet or comet
-  if ( $jform == 2 || $jform == 3) {
-    # for now we do not have enough information for jform=3
-    # so just assume the EPOCH is the same
-    #use Data::Dumper;
-    #print "Before perturbing: ". Dumper(\%el);
-    #print "MJD ref : " . $self->_mjd_tt . " and jform = $jform\n";
-    Astro::SLA::slaPertel($jform,$el{EPOCH},$self->_mjd_tt,
-			  $el{EPOCHPERIH},$el{ORBINC},$el{ANODE},
-			  $el{PERIH},$el{AORQ},$el{E},$el{AORL},
-			  $el{EPOCH},$el{ORBINC}, $el{ANODE},
-			  $el{PERIH},$el{AORQ},$el{E},$el{AORL},
-			  my $jstat);
-    #print "After perturbing: " .Dumper(\%el);
-    croak "Error perturbing elements for target ".
-            (defined $self->name ? $self->name : '' )
-             ." [status=$jstat]" 
-       if $jstat != 0;
-  }
+    # synch epoch if need be
+    if (!exists $el{EPOCH} || !exists $el{EPOCHPERIH}) {
+      if (exists $el{EPOCH}) {
+	$el{EPOCHPERIH} = $el{EPOCH};
+      } else {
+	$el{EPOCH} = $el{EPOCHPERIH};
+      }
+    }
+
+    # First have to perturb the elements to the current epoch
+    # if we have a minor planet or comet
+    if ( $jform == 2 || $jform == 3) {
+      # for now we do not have enough information for jform=3
+      # so just assume the EPOCH is the same
+#    use Data::Dumper;
+#    print "Before perturbing: ". Dumper(\%el);
+#    print "MJD ref : " . $self->_mjd_tt . " and jform = $jform\n";
+      Astro::SLA::slaPertel($jform,$el{EPOCH},$self->_mjd_tt,
+			    $el{EPOCHPERIH},$el{ORBINC},$el{ANODE},
+			    $el{PERIH},$el{AORQ},$el{E},$el{AORL},
+			    $el{EPOCH},$el{ORBINC}, $el{ANODE},
+			    $el{PERIH},$el{AORQ},$el{E},$el{AORL},
+			    my $jstat);
+#    print "After perturbing: " .Dumper(\%el);
+      croak "Error perturbing elements for target ".
+	(defined $self->name ? $self->name : '' )
+	  ." [status=$jstat]" 
+	    if $jstat != 0;
+    }
 
 
   # Print out the values
@@ -373,22 +379,29 @@ sub apparent {
   #print "AORQ:   $el{AORQ}\n";
   #print "E:      $el{E}\n";
 
-  Astro::SLA::slaPlante($self->_mjd_tt, $long, $lat, $jform,
-			$el{EPOCH}, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
-			$el{AORQ}, $el{E}, $el{AORL}, $el{DM}, 
-			my $ra, my $dec, my $dist, my $j);
+    Astro::SLA::slaPlante($self->_mjd_tt, $long, $lat, $jform,
+			  $el{EPOCH}, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
+			  $el{AORQ}, $el{E}, $el{AORL}, $el{DM}, 
+			  my $ra, my $dec, my $dist, my $j);
 
-  croak "Error determining apparent RA/Dec for target ".
-              (defined $self->name ? $self->name : '' )
-                  ."[status=$j]" if $j != 0;
+    croak "Error determining apparent RA/Dec for target ".
+      (defined $self->name ? $self->name : '' )
+	."[status=$j]" if $j != 0;
 
-  # Convert from observed to apparent place
-  Astro::SLA::slaOap("r", $ra, $dec, $self->_mjd_tt, 0.0, $long, $lat, 
-		     0.0,0.0,0.0,
-		     0.0,0.0,0.0,0.0,0.0,$ra, $dec);
+    # Convert from observed to apparent place
+    Astro::SLA::slaOap("r", $ra, $dec, $self->_mjd_tt, 0.0, $long, $lat, 
+		       0.0,0.0,0.0,
+		       0.0,0.0,0.0,0.0,0.0,$ra, $dec);
 
-  return(new Astro::Coords::Angle::Hour($ra, units => 'rad', range => '2PI'),
-	 new Astro::Coords::Angle($dec, units => 'rad'));
+    # Convert to angle object
+    $ra_app = new Astro::Coords::Angle::Hour($ra, units => 'rad', range => '2PI');
+    $dec_app = new Astro::Coords::Angle($dec, units => 'rad');
+
+    # Store in cache
+    $self->_cache_write( "RA_APP" => $ra_app, "DEC_APP" => $dec_app );
+  }
+
+  return( $ra_app, $dec_app );
 }
 
 =item B<rv>

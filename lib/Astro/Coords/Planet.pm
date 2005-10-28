@@ -199,18 +199,31 @@ coordinates and time.
 
 sub apparent {
   my $self = shift;
-  my $tel = $self->telescope;
-  my $long = (defined $tel ? $tel->long : 0.0 );
-  my $lat = (defined $tel ? $tel->lat : 0.0 );
 
-  Astro::SLA::slaRdplan($self->_mjd_tt, $PLANET{$self->planet},
-			$long, $lat, my $ra_app, my $dec_app, my $diam);
+  my ($ra_app, $dec_app) = $self->_cache_read( "RA_APP", "DEC_APP" );
 
-  # Store the diameter
-  $self->diam( $diam );
+  # Need to calculate it
+  if (!defined $ra_app || !defined $dec_app) {
 
-  return (new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI'),
-	  new Astro::Coords::Angle($dec_app, units => 'rad'));
+    my $tel = $self->telescope;
+    my $long = (defined $tel ? $tel->long : 0.0 );
+    my $lat = (defined $tel ? $tel->lat : 0.0 );
+
+    Astro::SLA::slaRdplan($self->_mjd_tt, $PLANET{$self->planet},
+			  $long, $lat, $ra_app, $dec_app, my $diam);
+
+    # Store the diameter
+    $self->diam( $diam );
+
+    # Convert to angle objects
+    $ra_app = new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI');
+    $dec_app = new Astro::Coords::Angle($dec_app, units => 'rad');
+
+    # store in cache
+    $self->_cache_write( "RA_APP" => $ra_app, "DEC_APP" => $dec_app );
+  }
+
+  return ($ra_app, $dec_app);
 }
 
 =item B<rv>

@@ -266,9 +266,17 @@ If no telescope is present the equator is used.
 sub apparent {
   my $self = shift;
 
-  my ($ha, $dec_app) = $self->hadec;
-  my $ra_app = $self->_lst - $ha->radians;
-  $ra_app = new Astro::Coords::Angle::Hour( $ra_app, units => 'rad', range => '2PI' );
+  my ($ra_app, $dec_app) = $self->_cache_read( "RA_APP", "DEC_APP" );
+
+  if (!defined $ra_app || !defined $dec_app) {
+
+    (my $ha, $dec_app) = $self->hadec;
+    $ra_app = $self->_lst - $ha->radians;
+    $ra_app = new Astro::Coords::Angle::Hour( $ra_app, units => 'rad', range => '2PI' );
+
+    # should not cache the DEC_APP since we did not calculate it
+    $self->_cache_write( "RA_APP" => $ra_app );
+  }
 
   return( $ra_app, $dec_app);
 }
@@ -284,17 +292,25 @@ If no telescope is present the equator is used.
 
 sub hadec {
   my $self = shift;
-  my ($az, $el) = $self->azel;
-  my $tel = $self->telescope;
-  my $lat = ( defined $tel ? $tel->lat : 0.0);
 
+  my ($ha, $dec_app) = $self->_cache_read( "HA", "DEC_APP" );
 
+  if (!defined $ha || !defined $dec_app) {
 
-  # First need to get the hour angle and declination from the Az and El
-  Astro::SLA::slaDh2e($az->radians, $el->radians, $lat, my $ha, my $dec_app);
+    my ($az, $el) = $self->azel;
+    my $tel = $self->telescope;
+    my $lat = ( defined $tel ? $tel->lat : 0.0);
 
-  return (new Astro::Coords::Angle::Hour( $ha, units => 'rad', range => 'PI'),
-	  new Astro::Coords::Angle( $dec_app, units => 'rad'));
+    # First need to get the hour angle and declination from the Az and El
+    Astro::SLA::slaDh2e($az->radians, $el->radians, $lat, $ha, $dec_app);
+
+    $ha = new Astro::Coords::Angle::Hour( $ha, units => 'rad', range => 'PI');
+    $dec_app = new Astro::Coords::Angle( $dec_app, units => 'rad');
+
+    $self->_cache_write( "HA" => $ha, "DEC_APP" => $dec_app );
+  }
+
+  return ($ha, $dec_app);
 }
 
 =item B<ha_set>

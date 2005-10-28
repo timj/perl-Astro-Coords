@@ -599,38 +599,49 @@ coordinates and time.
 
 sub apparent {
   my $self = shift;
-  my $ra = $self->ra2000;
-  my $dec = $self->dec2000;
-  my $mjd = $self->_mjd_tt;
-  my $par = $self->parallax;
-  my @pm = $self->pm;
 
-  @pm = (0,0) unless @pm;
-  $par = 0.0 unless defined $par;
+  # Assumes that Parallax and proper motions are constants for this object
+  my ($ra_app, $dec_app) = $self->_cache_read( "RA_APP", "DEC_APP" );
 
-  # do not attempt to correct for radial velocity unless we are doing parallax or
-  # proper motion correction
-  my $rv = 0;
-  if ($par != 0 || $pm[0] != 0 || $pm[1] != 0 ) {
-    # Radial velocity in HEL frame
-    # Note that we need to calculate the apparent RA/Dec to get the HEL frame
-    # if the radial velocity is not already in HEL
-    # We have to ignore it for now and only use rv if it is heliocentric
-    $rv = $self->rv if $self->vframe eq 'HEL';
+  if (!defined $ra_app || !defined $dec_app) {
+
+    my $ra = $self->ra2000;
+    my $dec = $self->dec2000;
+    my $mjd = $self->_mjd_tt;
+    my $par = $self->parallax;
+    my @pm = $self->pm;
+
+    @pm = (0,0) unless @pm;
+    $par = 0.0 unless defined $par;
+
+    # do not attempt to correct for radial velocity unless we are doing parallax or
+    # proper motion correction
+    my $rv = 0;
+    if ($par != 0 || $pm[0] != 0 || $pm[1] != 0 ) {
+      # Radial velocity in HEL frame
+      # Note that we need to calculate the apparent RA/Dec to get the HEL frame
+      # if the radial velocity is not already in HEL
+      # We have to ignore it for now and only use rv if it is heliocentric
+      $rv = $self->rv if $self->vframe eq 'HEL';
+    }
+
+    Astro::SLA::slaMap( $ra, $dec,
+			Astro::SLA::DAS2R * $pm[0],
+			Astro::SLA::DAS2R * $pm[1], $par, $rv, 2000.0, $mjd,
+			$ra_app, $dec_app);
+
+    # Convert from observed to apparent place
+    #  Astro::SLA::slaOap("r", $ra_app, $dec_app, $mjd, 0.0, $long, $lat,
+    #                     0.0,0.0,0.0,
+    #                     0.0,0.0,0.0,0.0,0.0,$ra, $dec);
+
+    $ra_app = new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI');
+    $dec_app = new Astro::Coords::Angle($dec_app, units => 'rad');
+
+    $self->_cache_write( "RA_APP" => $ra_app, "DEC_APP" => $dec_app );
   }
 
-  Astro::SLA::slaMap( $ra, $dec,
-		      Astro::SLA::DAS2R * $pm[0],
-		      Astro::SLA::DAS2R * $pm[1], $par, $rv, 2000.0, $mjd,
-		      my $ra_app, my $dec_app);
-
-  # Convert from observed to apparent place
-#  Astro::SLA::slaOap("r", $ra_app, $dec_app, $mjd, 0.0, $long, $lat,
-#                     0.0,0.0,0.0,
-#                     0.0,0.0,0.0,0.0,0.0,$ra, $dec);
-
-  return (new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI'),
-	  new Astro::Coords::Angle($dec_app, units => 'rad'));
+  return ($ra_app, $dec_app);
 }
 
 =item B<array>
