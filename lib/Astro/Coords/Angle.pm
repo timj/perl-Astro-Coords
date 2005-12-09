@@ -461,6 +461,37 @@ sub in_format {
   }
 }
 
+=item B<clone>
+
+Create new cloned copy of this object.
+
+  $clone = $ang->clone;
+
+=cut
+
+sub clone {
+  my $self = shift;
+  return bless { %$self }, ref $self;
+}
+
+=item B<negate>
+
+Negate the sense of the angle, returning a new angle object.
+
+  $neg = $ang->negate;
+
+Not allowed if the range is defined as 0 to 2PI.
+
+=cut
+
+sub negate {
+  my $self = shift;
+  croak "Angle can not be negated since its range is 0 to 2PI"
+    if $self->range eq '2PI';
+  my $rad = $self->radians;
+  return $self->new( $rad, units => 'radians', range => $self->range );
+}
+
 =back
 
 =head2 Overloading

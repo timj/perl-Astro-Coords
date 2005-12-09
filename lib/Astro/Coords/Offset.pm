@@ -148,6 +148,34 @@ sub offsets {
   return @{$self->{OFFSETS}};
 }
 
+=item B<xoffset>
+
+Returns just the X offset.
+
+  $x = $off->xoffset;
+
+=cut
+
+sub xoffset {
+  my $self = shift;
+  my @xy = $self->offsets;
+  return $xy[0];
+}
+
+=item B<yoffset>
+
+Returns just the Y offset.
+
+  $x = $off->yoffset;
+
+=cut
+
+sub yoffset {
+  my $self = shift;
+  my @xy = $self->offsets;
+  return $xy[1];
+}
+
 =item B<system>
 
 Coordinate system of this offset. Can be different to the coordinate
@@ -291,6 +319,53 @@ sub tracking_system {
     $self->{TRACKING_SYSTEM} = $p;
   }
   return $self->{TRACKING_SYSTEM};
+}
+
+=back
+
+=head2 General Methods
+
+=over 4
+
+=item B<invert>
+
+Return a new offset object with the sense of the offset inverted.
+
+  $inv = $offset->invert;
+
+=cut
+
+# We could do this by adding 180 deg to posang but people really
+# expect the sign to change
+
+sub invert {
+  my $self = shift;
+
+  my @xy = map { $_->negate } $self->offsets;
+  my $pa = $self->posang->clone;
+  $pa = undef if $pa->radians == 0;
+  return $self->new( @xy, system => $self->system,
+		     projection => $self->projection,
+		     posang => $pa);
+}
+
+=item B<clone>
+
+Create a cloned copy of this offset.
+
+  $clone = $offset->clone;
+
+=cut
+
+sub clone {
+  my $self = shift;
+  my @xy = map { $_->clone() } $self->offsets;
+  my $pa = $self->posang->clone;
+  $pa = undef if $pa->radians == 0;
+  return $self->new( @xy, posang => $pa,
+		     system => $self->system,
+		     projection => $self->projection
+		   );
 }
 
 =back

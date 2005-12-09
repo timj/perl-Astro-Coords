@@ -1,5 +1,13 @@
 2005-12-08  Tim Jenness  <tjenness@cpan.org>
 
+	* lib/Astro/Coords/Offset.pm (invert): Add invert method
+
+	* lib/Astro/Coords/Angle.pm (negate): Add negate method
+
+	* lib/Astro/Coords/Offset.pm (clone): Add clone method
+
+	* lib/Astro/Coords/Angle.pm (clone): Add clone method
+
 	* lib/Astro/Coords/Offset.pm: Add DIRECT offset projection to match PTCS
 
 2005-12-05  Tim Jenness  <tjenness@cpan.org>
