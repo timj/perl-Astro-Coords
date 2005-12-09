@@ -1,3 +1,11 @@
+2005-12-08  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Offset.pm: Add DIRECT offset projection to match PTCS
+
+2005-12-05  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Offset.pm (posang): Add posang() method.
+
 2005-10-28  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords.pm (datetime_is_unsafe): Implement caching

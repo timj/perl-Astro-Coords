@@ -35,12 +35,14 @@ use Carp;
 
 use Astro::Coords::Angle;
 
+use constant PAZERO => new Astro::Coords::Angle( 0.0 );
+
 use vars qw/ @PROJ  @SYSTEMS /;
 
 our $VERSION = '0.01';
 
 # Allowed projections
-@PROJ = qw| SIN TAN ARC |;
+@PROJ = qw| SIN TAN ARC DIRECT |;
 
 # Allowed coordinate systems
 @SYSTEMS = qw|
@@ -76,6 +78,11 @@ arguments (defaulting to TAN and J2000 respectively).
   my $off = new Astro::Coords::Offset( @off, system => "AZEL", 
                                              projection => "SIN");
 
+  my $off = new Astro::Coords::Offset( @off, system => "AZEL", 
+                                             projection => "SIN",
+                                             posang => $pa,
+                                     );
+
 =cut
 
 sub new {
@@ -104,6 +111,7 @@ sub new {
   my $off = bless {
 		   OFFSETS => [ $dc1, $dc2 ],
 		   PROJECTION => undef,
+		   POSANG   => PAZERO,
 		   SYSTEM       => undef,
 		   TRACKING_SYSTEM => undef,
 		  }, $class;
@@ -113,6 +121,8 @@ sub new {
   $off->system( $system );
   $off->tracking_system( $options{tracking_system} )
     if exists $options{tracking_system};
+  $off->posang( $options{posang} )
+    if exists $options{posang};
 
   return $off;
 }
@@ -161,6 +171,38 @@ sub system {
     $self->{SYSTEM} = $p;
   }
   return $self->{SYSTEM};
+}
+
+=item B<posang>
+
+Position angle of this offset as an C<Astro::Coords::Angle> object.
+Position angle follows the normal "East of North" convention.
+
+  $off->posang( 45 );
+  $pa = $off->posang;
+
+If a number is supplied it is assumed to be in degrees (this
+matches the common usage in the JCMT TCS XML DTD).
+
+By default returns a position angle of 0 deg.
+
+=cut
+
+sub posang {
+  my $self = shift;
+  if (@_) {
+    my $pa = shift;
+    if (!defined $pa) {
+      $self->{POSANG} = PAZERO;
+    } elsif (UNIVERSAL::isa($pa, "Astro::Coords::Angle")) {
+      $self->{POSANG} = $pa;
+    } elsif ($pa =~ /\d/) {
+      $self->{POSANG} = new Astro::Coords::Angle( $pa, units => 'deg');
+    } else {
+      croak "Position angle for offset supplied in non-recognizable form ('$pa')";
+    }
+  }
+  return $self->{POSANG};
 }
 
 =item B<projection>
