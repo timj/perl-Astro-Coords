@@ -97,8 +97,19 @@ sub new {
 
   my %options = @_;
 
-  my $system = (exists $options{system} ? $options{system} : "J2000" );
-  my $proj = (exists $options{projection} ? $options{projection} : "TAN" );
+  # Aim for case-insensitive keys
+  my %merged = (
+		  system => "J2000",
+		  projection => 'TAN',
+		  tracking_system => undef,
+		  posang => undef );
+
+  for my $k (keys %options) {
+    my $lk = lc($k);
+    if (exists $merged{$lk}) {
+      $merged{$lk} = $options{$k};
+    }
+  }
 
   # Store the offsets as Angle objects if they are not already
   $dc1 = new Astro::Coords::Angle( $dc1, units => 'arcsec' )
@@ -117,12 +128,12 @@ sub new {
 		  }, $class;
 
   # Use accessor to set so that we get validation
-  $off->projection( $proj );
-  $off->system( $system );
-  $off->tracking_system( $options{tracking_system} )
-    if exists $options{tracking_system};
-  $off->posang( $options{posang} )
-    if exists $options{posang};
+  $off->projection( $merged{projection} );
+  $off->system( $merged{system} );
+  $off->tracking_system( $merged{tracking_system} )
+    if defined $merged{tracking_system};
+  $off->posang( $merged{posang} )
+    if defined $merged{posang};
 
   return $off;
 }
@@ -186,6 +197,8 @@ JAC TCS XML (see L<"SEE ALSO"> section at end). TRACKING is special
 since it can change, depending on which output coordinate frame is
 in use. See the C<tracking_system> attribute for more details.
 
+"Az/El" is treated as "AZEL" for backwards compatibility reasons.
+
 =cut
 
 sub system {
@@ -193,6 +206,7 @@ sub system {
   if (@_) { 
     my $p = shift;
     $p = uc($p);
+    $p = "AZEL" if $p eq 'AZ/EL';
     my $match = join("|",@SYSTEMS);
     croak "Unknown system '$p'"
       unless $p =~ /^$match$/;
@@ -383,7 +397,7 @@ Tim Jenness E<lt>tjenness@cpan.orgE<gt>
 
 =head1 COPYRIGHT
 
-Copyright 2002-2005 Particle Physics and Astronomy Research Council.
+Copyright 2002-2006 Particle Physics and Astronomy Research Council.
 All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
