@@ -44,14 +44,15 @@ our $VERSION = '0.01';
 # Allowed projections
 @PROJ = qw| SIN TAN ARC DIRECT |;
 
-# Allowed coordinate systems
+# Allowed coordinate systems  J\d+ and B\d+ are also allowed by the
+# PTCS - these are pattern matches
 @SYSTEMS = qw|
 	      TRACKING
 	      GAL
 	      ICRS
 	      ICRF
-	      J2000
-	      B1950
+	      J\d+(\.\d)?
+	      B\d+(\.\d)?
 	      APP
 	      HADEC
 	      AZEL

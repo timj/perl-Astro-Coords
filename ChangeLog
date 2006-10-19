@@ -1,7 +1,12 @@
+2006-10-18  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Offset.pm (system): Allow B1900 and J2006.4 etc
+	as offset system.
+
 2006-01-09  Tim Jenness  <tjenness@cpan.org>
 
-	* lib/Astro/Coords/Offset.pm (new): Allow for case-insensitive keys in constructor.
-	Allow "Az/El" to be a synonym for AZEL.
+	* lib/Astro/Coords/Offset.pm (new): Allow for case-insensitive
+	keys in constructor.  Allow "Az/El" to be a synonym for AZEL.
 
 2005-12-08  Tim Jenness  <tjenness@cpan.org>
 
