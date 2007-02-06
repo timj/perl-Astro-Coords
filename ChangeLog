@@ -1,3 +1,8 @@
+2007-02-05  Tim Jenness  <tjenness@cpan.org>
+
+	* lib/Astro/Coords/Angle/Hour.pm: Fix constructor so that it
+	correctly recognizes decimal hours.
+
 2006-10-18  Tim Jenness  <tjenness@cpan.org>
 
 	* lib/Astro/Coords/Offset.pm (system): Allow B1900 and J2006.4 etc

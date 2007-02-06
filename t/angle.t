@@ -1,6 +1,6 @@
 #!perl
 use strict;
-use Test::More tests => 15;
+use Test::More tests => 19;
 
 require_ok('Astro::Coords::Angle');
 require_ok('Astro::Coords::Angle::Hour');
@@ -28,10 +28,18 @@ is( "$ang", "45d00m00.00000s", "dms stringification");
 
 is( $ang->arcsec, (45 * 60 * 60 ), 'arcsec');
 
-
 # use string form to recreate to test parser
 my $ang2 = new Astro::Coords::Angle( $ang->string, units=>'sex',range=>'PI');
 is($ang2->degrees, $ang->degrees, "compare deg to string to deg");
+
+# Test Hour constructor
+$ang = new Astro::Coords::Angle::Hour( "12:00:00");
+is($ang->degrees, 180, "compare sexagesimal hour to deg ($ang)");
+
+# Make sure that decimal hours works
+$ang = new Astro::Coords::Angle::Hour( 12, units => 'hour' );
+is($ang->degrees, 180, "compare hour to deg");
+is($ang->hours, 12, "compare hour to hour");
 
 
 my $ra = new Astro::Coords::Angle::Hour( '12h13m45.6s', units => 'sex',
@@ -52,3 +60,8 @@ is($ang4->degrees, 45, "Check 45:00:00 deg without units");
 my $rad = 0.5;
 my $ang5 = new Astro::Coords::Angle( $rad );
 is($ang5->radians, 0.5, "Check 0.5 rad is still 0.5 rad");
+
+# check that defaulting is correct for Hours
+my $hour = 12;
+my $ang6 = new Astro::Coords::Angle::Hour( $hour );
+is( $ang6->hours, 12, "Default guess of units");
