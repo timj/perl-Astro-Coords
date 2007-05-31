@@ -1212,6 +1212,8 @@ will be Angle objects if no units are specified.
 Note that this method returns C<DateTime> objects if it was given C<DateTime>
 objects, else it returns C<Time::Piece> objects.
 
+After running, the original time associated with the object will be retained.
+
 =cut
 
 sub calculate {
@@ -1237,6 +1239,11 @@ sub calculate {
 	($dateclass ne "Time::Piece" && $dateclass ne 'DateTime' ));
 
   my @data;
+
+  # Get the current datetime
+  my $original;
+  my $usenow = $self->usenow;
+  $original = $self->datetime() unless $usenow;
 
   # Get a private copy of the date object for calculations
   # (copy constructor)
@@ -1274,6 +1281,14 @@ sub calculate {
     $current = _inc_time( $current, $inc );
 
   }
+
+  # Restore the time
+  if ($usenow) {
+    $self->datetime( undef );
+  } else {
+    $self->datetime( $original );
+  }
+  $self->usenow( $usenow );
 
   return @data;
 
