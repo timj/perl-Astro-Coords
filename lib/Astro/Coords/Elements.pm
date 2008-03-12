@@ -163,6 +163,7 @@ sub new {
       #print "EPOCH : $epoch and $date and $frac\n";
       my $obj = Time::Piece->strptime($date, $format);
       my $tzoffset = $obj->tzoffset;
+      $tzoffset = $tzoffset->seconds if defined $tzoffset;
       $obj = gmtime($obj->epoch() + $tzoffset);
 
       # get the MJD and add on the fraction
@@ -175,6 +176,12 @@ sub new {
       warn "Unable to recognize format for elements $key [$epoch]";
       return undef;
     }
+
+    # Convert JD to MJD
+    if ($elements{$key} > 2400000.5) {
+      $elements{$key} -= 2400000.5;
+    }
+
   }
 
   # but complain if we do not have one of them
