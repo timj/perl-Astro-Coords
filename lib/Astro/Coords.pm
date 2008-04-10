@@ -2230,6 +2230,8 @@ C<Astro::SLA::ut2lst> function with the correct args (and therefore
 does not need the MJD). It will need the longitude though so we
 calculate it here.
 
+No correction for DUT1 is applied.
+
 =cut
 
 sub _lst {
@@ -2240,11 +2242,18 @@ sub _lst {
   # Get the longitude (in radians)
   my $long = (defined $tel ? $tel->long : 0.0 );
 
+  # Seconds can be floating point.
+  my $sec = $time->sec;
+  if ($time->can("nanosecond")) {
+    $sec += 1E-9 * $time->nanosecond;
+  }
+
   # Return the first arg
   # Note that we guarantee a UT time representation
   my $lst = (Astro::SLA::ut2lst( $time->year, $time->mon,
 				 $time->mday, $time->hour,
-				 $time->min, $time->sec, $long))[0];
+				 $time->min, $sec, $long))[0];
+
   return new Astro::Coords::Angle::Hour( $lst, units => 'rad', range => '2PI');
 }
 
@@ -2278,8 +2287,8 @@ sub _clone_time {
   if (UNIVERSAL::isa($input, "Time::Piece")) {
     return Time::Piece::gmtime( $input->epoch );
   } elsif (UNIVERSAL::isa($input, "DateTime")) {
-    return DateTime->from_epoch( epoch => $input->epoch, 
-			         time_zone => UTC );
+    # Use proper clone method
+    return $input->clone;
   }
   return;
 }
@@ -3010,8 +3019,11 @@ sub _calc_cache_key {
   # be careful about fractional seconds in DateTime (Time::Piece can
   # not do it)
 
+  my $addendum = "";
+  $addendum = $dt->nanosecond if $dt->can("nanosecond");
+
   # Use date + telescope name as key
-  $self->_cache_key($telName . "_" . $dt->epoch); 
+  $self->_cache_key($telName . "_" . $dt->epoch. $addendum); 
 }
 
 =item B<_cache_key>
