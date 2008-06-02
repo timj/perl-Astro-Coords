@@ -208,10 +208,21 @@ sub system {
     my $p = shift;
     $p = uc($p);
     $p = "AZEL" if $p eq 'AZ/EL';
-    my $match = join("|",@SYSTEMS);
-    croak "Unknown system '$p'"
-      unless $p =~ /^$match$/;
-    $self->{SYSTEM} = $p;
+
+    # need to make sure that we convert the input system into
+    # a TCS system
+    my $match;
+    for my $compare (@SYSTEMS) {
+	if ($p =~ /^$compare/) {
+	    if (!defined $match) {
+		$match = $compare;
+	    } else {
+		croak "Multiple matches for system '$p'";
+	    }
+	}
+    }
+    croak "Unknown system '$p'" unless defined $match;
+    $self->{SYSTEM} = $match;
   }
   return $self->{SYSTEM};
 }
