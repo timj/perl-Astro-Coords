@@ -46,20 +46,22 @@ our $VERSION = '0.01';
 
 # Allowed coordinate systems  J\d+ and B\d+ are also allowed by the
 # PTCS - these are pattern matches
-@SYSTEMS = qw|
+@SYSTEMS = (qw|
 	      TRACKING
 	      GAL
 	      ICRS
 	      ICRF
-	      J\d+(\.\d)?
-	      B\d+(\.\d)?
+              |,
+	      qr|J\d+(\.\d)?|,
+	      qr|B\d+(\.\d)?|,
+            qw|
 	      APP
 	      HADEC
 	      AZEL
 	      MOUNT
 	      OBS
 	      FPLANE
-	      |;
+	      |);
 
 =head1 METHODS
 
@@ -215,7 +217,13 @@ sub system {
     for my $compare (@SYSTEMS) {
 	if ($p =~ /^$compare/) {
 	    if (!defined $match) {
-		$match = $compare;
+                if (ref($compare)) {
+                   # regex so we just take the input
+                   $match = $p;
+                } else {
+                   # exact match to start of string so take the TCS value
+   	 	   $match = $compare;
+                }
 	    } else {
 		croak "Multiple matches for system '$p'";
 	    }
