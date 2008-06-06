@@ -10,7 +10,7 @@ isa_ok($off, "Astro::Coords::Offset");
 
 is( $off->system, "GAL", "Check system conversion");
 
-my $off = Astro::Coords::Offset->new( 55, 22, system => "J2008.5" );
+$off = Astro::Coords::Offset->new( 55, 22, system => "J2008.5" );
 isa_ok($off, "Astro::Coords::Offset");
 
 is( $off->system, "J2008.5", "Check system conversion");
