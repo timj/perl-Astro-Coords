@@ -80,7 +80,8 @@ minutes and seconds.
 
 sub in_format {
   my $self = shift;
-  my $format = lc(shift);
+  my $format = shift;
+  $format = lc($format) if $format;
   return $self->hours() if (defined $format && $format =~ /^h/);
   return $self->SUPER::in_format( $format );
 }

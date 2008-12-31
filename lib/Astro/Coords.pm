@@ -1439,7 +1439,7 @@ sub ha_set {
     ( cos($lat) * cos($dec) );
 
   # Make sure we have a valid number for the cosine
-  if (lc($self->name) eq 'moon' && abs($cos_ha0) > 1) {
+  if (defined $self->name && lc($self->name) eq 'moon' && abs($cos_ha0) > 1) {
     # for the moon this routine can incorrectly determine
     # cos HA near transit [in fact it always will be inaccurate
     # but near transit it won't return any value at all]
@@ -1468,7 +1468,8 @@ sub ha_set {
   # If we are the Sun we need to convert this to solar time
   # time from sidereal time
   $ha0 *= 365.2422/366.2422
-    unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
+    unless (defined $self->name && 
+            lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
 
 
 #  print "HA 0 is $ha0\n";
@@ -1606,7 +1607,7 @@ sub _calc_mtime {
   # Need to make sure we lock onto the correct transit so I'm
   # wary of jumping forward by exactly 24 hours
   my $inc = 12 * $event;
-  $inc /= 2 if lc($self->name) eq 'moon';
+  $inc /= 2 if (defined $self->name && lc($self->name) eq 'moon');
 
   # Loop until mtime is greater than the reftime
   # and (mtime - prevtime) is smaller than a second
@@ -1690,7 +1691,8 @@ sub _local_mtcalc {
   # If we are not the Sun we need to convert this to sidereal
   # time from solar time
   $offset_sec *= 365.2422/366.2422
-    unless (lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
+    unless (defined $self->name &&
+            lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
 
   my $datetime = $self->datetime;
   if ($self->_isdt()) {
@@ -2554,7 +2556,7 @@ sub _iterative_el {
 
     # use 1 minute for all except the moon
     my $inc = 60; # seconds
-    $inc *= 10 if lc($self->name) eq 'moon';
+    $inc *= 10 if (defined $self->name && lc($self->name) eq 'moon');
 
     my $sign = ($el < $refel ? 1 : -1); # incrementing or decrementing time
     my $prevel; # previous elevation
