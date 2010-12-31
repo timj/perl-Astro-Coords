@@ -1,6 +1,7 @@
 Build.PL
 ChangeLog
 MANIFEST
+MANIFEST.SKIP
 README
 t/1_compile.t
 t/angle.t
@@ -23,3 +24,4 @@ lib/Astro/Coords/Interpolated.pm
 lib/Astro/Coords/Offset.pm
 lib/Astro/Coords/Angle.pm
 lib/Astro/Coords/Angle/Hour.pm
+META.yml
