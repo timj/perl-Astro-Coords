@@ -29,10 +29,10 @@ at some point Time::Piece support may be removed.
 Building
 --------
 
-  perl Makefile.PL
-  make
-  make test
-  make install
+  perl Build.PL
+  ./Build
+  ./Build test
+  ./Build install
 
 
 Author
@@ -41,9 +41,22 @@ Author
 This module was written by Tim Jenness <tjenness@cpan.org>
 of the Joint Astronomy Centre.
 
+Copyright (C) 2008,2010 Science and Technologiy Facilities Council.
 Copyright (C) 2001-2005 Particle Physics and Astronomy Research Council.
-All Rights Reserved. This program is free software; you can
-redistribute it and/or modify it under the same terms as Perl itself.
+All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; either version 2 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful,but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc., 59 Temple
+Place,Suite 330, Boston, MA  02111-1307, USA
 
 TODO
 ----
@@ -90,3 +103,13 @@ Changes
          + Galactic and ecliptic conversions now in base class (moved from Equatorial)
          + radec1950 method available
          + Switch to GPL license
+
+v0.12 - + Update Elements interface
+        + Improve performance of DateTime usage (caching TimeZone object)
+        + Support barycentric velocities
+        + Astro::Coords::Offset now has invert(), clone() and posang() method
+        + Astro::Coords::Angle now has clone() and negate() methods.
+        + Astro::Coords::Offset now allows more systems.
+        + Fix problem with fractions seconds in LST calculation
+        + Fix problem with calculate() method trashing the cached DateTime.
+        + Uses Module::Build
