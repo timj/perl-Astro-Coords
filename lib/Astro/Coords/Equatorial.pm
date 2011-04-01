@@ -52,7 +52,7 @@ use warnings;
 use warnings::register;
 use Carp;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 use Astro::SLA ();
 use base qw/ Astro::Coords /;
@@ -279,14 +279,14 @@ sub new {
     $ra = $ra0;
     $dec = $dec0;
 
-  } elsif ($args{type} eq "GALACTIC") {
+  } elsif ($args{type} =~ /^gal/i) {
     $native = 'glonglat';
     return undef unless exists $args{long} and exists $args{lat};
     return undef unless defined $args{long} and defined $args{lat};
 
     Astro::SLA::slaGaleq( $args{long}, $args{lat}, $ra, $dec);
 
-  } elsif ($args{type} eq "SUPERGALACTIC") {
+  } elsif ($args{type} =~ /^supergal/i) {
     return undef unless exists $args{long} and exists $args{lat};
     return undef unless defined $args{long} and defined $args{lat};
 
