@@ -205,7 +205,7 @@ sub new {
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
-                         Astro::SLA::DAS2R * $parallax,
+                         $parallax,
 			 $rv,
                          $epoch, # input epoch
 			 2000.0, # output epoch
@@ -243,7 +243,7 @@ sub new {
       Astro::SLA::slaPm( $ra, $dec,
                          Astro::SLA::DAS2R * $pm1,
                          Astro::SLA::DAS2R * $pm2,
-                         Astro::SLA::DAS2R * $parallax,
+                         $parallax,
                          $rv,
                          $epoch,
                          Astro::SLA::slaEpco('B','J',2000.0), # Besselian epoch
