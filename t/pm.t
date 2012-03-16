@@ -16,7 +16,7 @@ my $tel = new Astro::Telescope('JCMT');
 
 # Hard wire a reference date
 my $t  = gmtime( 1077557000 );
-print "# Epoch : J". Astro::SLA::slaEpj( $t->mjd)."\n";
+print "# Epoch : J". Astro::PAL::palEpj( $t->mjd)."\n";
 
 # RA/Dec in J2000 at 2000.0:     6 14 1.584  +15 9 54.36
 # RA/Dec in J2000 at 2004.1457:  6 14 1.777  +15 9 49.17
@@ -46,7 +46,7 @@ my $c = new Astro::Coords( name => "target",
                            dec => '-75 59 27.2',
                            type => 'B1900',
                            epoch => 1963.087,
-                           pm => [ (-0.0312 * &Astro::SLA::DS2R * &Astro::SLA::DR2AS), 0.103 ],
+                           pm => [ (-0.0312 * &Astro::PAL::DS2R * &Astro::SLA::DR2AS), 0.103 ],
                            parallax => 0.062,
                            units => 's',
 			   rv => -34.22,
@@ -55,7 +55,7 @@ my $c = new Astro::Coords( name => "target",
 # epoch of observation is J1994.35
 $t = gmtime( 768427560 );
 $c->datetime( $t );
-print "# Epoch : J". Astro::SLA::slaEpj( $t->mjd)."\n";
+print "# Epoch : J". Astro::PAL::palEpj( $t->mjd)."\n";
 # Sun67 says 16 23 07.901 -76 13 58.87
 is( $c->ra( format => 's' ), "16:23:07.9", "RA for SUN/67 test");
 is( $c->dec( format => 's' ), "-76:13:58.9", "Dec for SUN/67 test");

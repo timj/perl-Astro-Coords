@@ -160,7 +160,7 @@ Usually called via C<Astro::Coords>.
 
 =head1 REQUIREMENTS
 
-C<Astro::SLA> is used for all internal astrometric calculations.
+C<Astro::PAL> is used for all internal astrometric calculations.
 
 =head1 AUTHOR
 

@@ -21,9 +21,9 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
-use Astro::SLA ();
+use Astro::PAL ();
 use Astro::Coords::Angle;
 use base qw/ Astro::Coords /;
 
@@ -209,8 +209,8 @@ sub apparent {
     my $long = (defined $tel ? $tel->long : 0.0 );
     my $lat = (defined $tel ? $tel->lat : 0.0 );
 
-    Astro::SLA::slaRdplan($self->_mjd_tt, $PLANET{$self->planet},
-			  $long, $lat, $ra_app, $dec_app, my $diam);
+    ($ra_app, $dec_app, my $diam) = Astro::PAL::palRdplan($self->_mjd_tt, $PLANET{$self->planet},
+                                                          $long, $lat );
 
     # Store the diameter
     $self->diam( $diam );
@@ -294,16 +294,16 @@ sub _default_horizon {
   if ($name eq 'sun') {
     return &Astro::Coords::SUN_RISE_SET;
   } elsif ($name eq 'moon') {
-    return (-0.8 * Astro::SLA::DD2R);
+    return (-0.8 * Astro::PAL::DD2R);
     # See http://aa.usno.navy.mil/faq/docs/RST_defs.html
-    my $refterm = 0.5666 * Astro::SLA::DD2R; # atmospheric refraction
+    my $refterm = 0.5666 * Astro::PAL::DD2R; # atmospheric refraction
 
     # Get the moon radius
     $self->_apparent();
     my $radius = $self->diam() / 2;
 
     # parallax - assume 57 arcminutes for now
-    my $parallax = (57 * 60) * Astro::SLA::DAS2R;
+    my $parallax = (57 * 60) * Astro::PAL::DAS2R;
 
     print "Refraction: $refterm  Radius: $radius  Parallax: $parallax\n";
 
@@ -323,7 +323,7 @@ Usually called via C<Astro::Coords>.
 
 =head1 REQUIREMENTS
 
-C<Astro::SLA> is used for all internal astrometric calculations.
+C<Astro::PAL> is used for all internal astrometric calculations.
 
 =head1 AUTHOR
 

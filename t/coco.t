@@ -34,7 +34,7 @@ is( $c->dec(format=>'s'), "-00:23:35.76", "Check Dec 2000");
 $c->telescope( $tel );
 my $midday = gmtime(1000468800);
 $c->datetime( $midday );
-print "# Julian epoch: ". Astro::SLA::slaEpj( $midday->mjd ) ."\n";
+print "# Julian epoch: ". Astro::PAL::palEpj( $midday->mjd ) ."\n";
 print $c->status();
 
 # FK4 1900 epoch 2001 Sep 14
@@ -59,7 +59,7 @@ is( sprintf('%.8f',$glat->degrees), 43.95773251, "Check Galactic latitude");
 
 # Ecliptic coordinates
 my ($elong, $elat) = $c->ecllonglat();
-is( sprintf('%.6f',$elong->degrees), '228.984550',"Check ecliptic longitude");
-is( sprintf('%.8f',$elat->degrees), 17.70075558, "Check ecliptic latitude");
+is( sprintf('%.6f',$elong->degrees), '228.984554',"Check ecliptic longitude for $elong");
+is( sprintf('%.8f',$elat->degrees), 17.70075206, "Check ecliptic latitude for $elat");
 
 exit;

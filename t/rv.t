@@ -43,7 +43,7 @@ $ra->str_ndp( 2 );
 $dec->str_delim( " " );
 $dec->str_ndp( 2 );
 # Confirmed with COCO
-is( $ra->string, "15 25 10.95", "check RA(app)");
+is( $ra->string, "15 25 10.96", "check RA(app)");
 is( $dec->string, "-00 24 45.16", "check Dec(app)");
 
 # Galactic

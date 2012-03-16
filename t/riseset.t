@@ -12,7 +12,7 @@ use DateTime::TimeZone;
 # Need this since the constants from Astro::Coords will 
 # not be defined if we only require
 BEGIN { use_ok('Astro::Coords') };
-require_ok('Astro::SLA');
+require_ok('Astro::PAL');
 require_ok('Astro::Telescope');
 
 # reference time zones
@@ -202,9 +202,9 @@ for my $targ (sort keys %data) {
 
     my $time;
     if ($m->[3] eq 'r') {
-      $time = $c->rise_time(horizon => ( $m->[1] * Astro::SLA::DD2R) );
+      $time = $c->rise_time(horizon => ( $m->[1] * Astro::PAL::DD2R) );
     } else {
-      $time = $c->set_time( horizon => ( $m->[1] * Astro::SLA::DD2R) );
+      $time = $c->set_time( horizon => ( $m->[1] * Astro::PAL::DD2R) );
     }
 
     if (defined $time) {
@@ -240,8 +240,8 @@ for my $targ (sort keys %data) {
 my $moon2 = new Astro::Coords( planet => 'MOON' );
 
 my $place = new Astro::Telescope(Name => 'test',
-                                 Long => 18.4 * Astro::SLA::DD2R,
-                                 Lat =>  64.80 * Astro::SLA::DD2R,
+                                 Long => 18.4 * Astro::PAL::DD2R,
+                                 Lat =>  64.80 * Astro::PAL::DD2R,
                                  Alt =>  0);
 
 my $time = DateTime->new(year => 2005,

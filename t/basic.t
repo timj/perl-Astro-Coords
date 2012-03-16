@@ -37,7 +37,7 @@ my $c2 = new Astro::Coords(ra => "15:22:33.3",
 	                   dec => "-0:14:4.5",
 			   type => "B1950");
 
-is(sprintf("%.1f",scalar($c->distance($c2))*&Astro::SLA::DR2AS), '60.0',
+is(sprintf("%.1f",scalar($c->distance($c2))*&Astro::PAL::DR2AS), '60.0',
   "calculate distance");
 
 # Set telescope
@@ -220,7 +220,7 @@ $c->telescope( $tel );
 
 my $time = _gmstrptime("2002-03-21T03:16:36");
 $c->datetime( $time);
-print "#LST " . ($c->_lst * &Astro::SLA::DR2H). "\n";
+print "#LST " . ($c->_lst * &Astro::PAL::DR2H). "\n";
 is(sprintf("%.1f",$c->az(format => 'd')), '268.5');
 is(sprintf("%.1f",$c->el(format => 'd')), '60.3');
 
@@ -236,7 +236,7 @@ $c->telescope( $tel );
 
 $time = _gmstrptime("2002-03-21T03:16:36");
 $c->datetime( $time);
-print "#LST " . ($c->_lst * &Astro::SLA::DR2H). "\n";
+print "#LST " . ($c->_lst * &Astro::PAL::DR2H). "\n";
 is(sprintf("%.1f",$c->az(format => 'd')), '268.5');
 is(sprintf("%.1f",$c->el(format => 'd')), '60.3');
 
@@ -251,7 +251,7 @@ $c->telescope( $tel );
 # Time is in UT not localtime
 $time = _gmstrptime("2002-03-21T06:23:36");
 $c->datetime( $time );
-print "#LST " . ($c->_lst * &Astro::SLA::DR2H). "\n";
+print "#LST " . ($c->_lst * &Astro::PAL::DR2H). "\n";
 
 is(sprintf("%.1f",$c->az(format => 'd')), '301.7');
 is(sprintf("%.1f",$c->el(format => 'd')), '44.9');
@@ -261,9 +261,9 @@ $c = new Astro::Coords( elements => {
 				     # from JPL horizons
 				     EPOCH => 52440.0000,
 				     EPOCHPERIH => 50538.179590069,
-				     ORBINC => 89.4475147* &Astro::SLA::DD2R,
-				     ANODE =>  282.218428* &Astro::SLA::DD2R,
-				     PERIH =>  130.7184477* &Astro::SLA::DD2R,
+				     ORBINC => 89.4475147* &Astro::PAL::DD2R,
+				     ANODE =>  282.218428* &Astro::PAL::DD2R,
+				     PERIH =>  130.7184477* &Astro::PAL::DD2R,
 				     AORQ => 0.9226383480674554,
 				     E => 0.9949722217794675,
 				    },
@@ -284,7 +284,7 @@ $time = _gmstrptime("1997-10-24T17:00:00");
 
 $c->datetime( $time );
 print "# MJD: " . $c->datetime->mjd ."\n";
-print "# LST " . ($c->_lst * &Astro::SLA::DR2H). "\n";
+print "# LST " . ($c->_lst * &Astro::PAL::DR2H). "\n";
 
 # Answer actually stored in the headers is 187.4az and 22.2el
 is(sprintf("%.2f",$c->az(format => 'd')), '187.57',"Hale-Bopp azimuth");
@@ -295,7 +295,7 @@ my ($ra_bopp, $dec_bopp) = $c->radec();
 $ra_bopp->str_ndp( 0 );
 $dec_bopp->str_ndp( 1 );
 is($ra_bopp->string,"08:09:08","Hale-Bopp RA (J2000)");
-is($dec_bopp->string,"-47:25:27.4","Hale-Bopp Dec (J2000)");
+is($dec_bopp->string,"-47:25:27.5","Hale-Bopp Dec (J2000)");
 
 my $s = $c->status;
 my @s = split /\n/,$s;

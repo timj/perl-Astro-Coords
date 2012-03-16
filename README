@@ -13,13 +13,13 @@ corrections can also be calculated.
 This software is still a beta release but is in use in a production
 environment. The interfaces may still change slightly.
 
-It is a wrapper class around Astro::SLA that simplifies the handling of
+It is a wrapper class around Astro::PAL that simplifies the handling of
 astronomical coordinate systems. 
 
 Requirements
 ------------
 
-This class uses Astro::SLA, Astro::Telescope as well as
+This class uses Astro::PAL, Astro::Telescope as well as
 DateTime and Time::Piece.
 
 This release begins the migration from Time::Piece to DateTime
@@ -113,3 +113,6 @@ v0.12 - + Update Elements interface
         + Fix problem with fractions seconds in LST calculation
         + Fix problem with calculate() method trashing the cached DateTime.
         + Uses Module::Build
+
+v0.13 - + Use Astro::PAL instead of Astro::SLA. The main driver being that
+          Astro::PAL can be installed from CPAN without any additional dependencies.

@@ -21,10 +21,10 @@ use strict;
 use warnings;
 use Carp;
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 # Need working slaPlante
-use Astro::SLA 0.95 ();
+use Astro::PAL 0.95 ();
 use Astro::Coords::Angle;
 use Time::Piece qw/ :override /;
 
@@ -364,12 +364,12 @@ sub apparent {
 #    use Data::Dumper;
 #    print "Before perturbing: ". Dumper(\%el);
 #    print "MJD ref : " . $self->_mjd_tt . " and jform = $jform\n";
-      Astro::SLA::slaPertel($jform,$el{EPOCH},$self->_mjd_tt,
-			    $el{EPOCHPERIH},$el{ORBINC},$el{ANODE},
-			    $el{PERIH},$el{AORQ},$el{E},$el{AORL},
-			    $el{EPOCH},$el{ORBINC}, $el{ANODE},
-			    $el{PERIH},$el{AORQ},$el{E},$el{AORL},
-			    my $jstat);
+      ($el{EPOCH},$el{ORBINC}, $el{ANODE},
+       $el{PERIH},$el{AORQ},$el{E},$el{AORL},
+       my $jstat) = Astro::PAL::palPertel($jform,$el{EPOCH},$self->_mjd_tt,
+                                          $el{EPOCHPERIH},$el{ORBINC},$el{ANODE},
+                                          $el{PERIH},$el{AORQ},$el{E},$el{AORL} );
+
 #    print "After perturbing: " .Dumper(\%el);
       croak "Error perturbing elements for target ".
 	(defined $self->name ? $self->name : '' )
@@ -380,25 +380,19 @@ sub apparent {
 
   # Print out the values
   #print "EPOCH:  $el{EPOCH}\n";
-  #print "ORBINC: ". ($el{ORBINC}*Astro::SLA::DR2D) . "\n";
-  #print "ANODE:  ". ($el{ANODE}*Astro::SLA::DR2D) . "\n";
-  #print "PERIH : ". ($el{PERIH}*Astro::SLA::DR2D) . "\n";
+  #print "ORBINC: ". ($el{ORBINC}*Astro::PAL::DR2D) . "\n";
+  #print "ANODE:  ". ($el{ANODE}*Astro::PAL::DR2D) . "\n";
+  #print "PERIH : ". ($el{PERIH}*Astro::PAL::DR2D) . "\n";
   #print "AORQ:   $el{AORQ}\n";
   #print "E:      $el{E}\n";
 
-    Astro::SLA::slaPlante($self->_mjd_tt, $long, $lat, $jform,
-			  $el{EPOCH}, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
-			  $el{AORQ}, $el{E}, $el{AORL}, $el{DM}, 
-			  my $ra, my $dec, my $dist, my $j);
+    my ($ra, $dec, $dist, $j) = Astro::PAL::palPlante($self->_mjd_tt, $long, $lat, $jform,
+                                                      $el{EPOCH}, $el{ORBINC}, $el{ANODE}, $el{PERIH},
+                                                      $el{AORQ}, $el{E}, $el{AORL}, $el{DM} );
 
     croak "Error determining apparent RA/Dec for target ".
       (defined $self->name ? $self->name : '' )
 	."[status=$j]" if $j != 0;
-
-    # Convert from observed to apparent place
-    Astro::SLA::slaOap("r", $ra, $dec, $self->_mjd_tt, 0.0, $long, $lat, 
-		       0.0,0.0,0.0,
-		       0.0,0.0,0.0,0.0,0.0,$ra, $dec);
 
     # Convert to angle object
     $ra_app = new Astro::Coords::Angle::Hour($ra, units => 'rad', range => '2PI');
@@ -454,7 +448,7 @@ http://ssd.jpl.nasa.gov and http://cfa-www.harvard.edu/iau/Ephemerides/
 
 =head1 REQUIREMENTS
 
-C<Astro::SLA> is used for all internal astrometric calculations.
+C<Astro::PAL> is used for all internal astrometric calculations.
 
 =head1 AUTHOR
 

@@ -32,7 +32,7 @@ use warnings::register;
 use Carp;
 
 use Scalar::Util qw/ looks_like_number /;
-use Astro::SLA;
+use Astro::PAL;
 
 # Overloading
 use overload 
@@ -43,7 +43,7 @@ use overload
 # Package Global variables
 use vars qw/ $VERSION /;
 
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 =head1 METHODS
 
@@ -168,7 +168,7 @@ Return the angle in decimal degrees.
 sub degrees {
   my $self = shift;
   my $rad = $self->radians;
-  return $rad * Astro::SLA::DR2D;
+  return $rad * Astro::PAL::DR2D;
 }
 
 =item B<str_ndp>
@@ -345,7 +345,7 @@ Return the angle in arcseconds.
 sub arcsec {
   my $self = shift;
   my $rad = $self->radians;
-  return $rad * Astro::SLA::DR2AS;
+  return $rad * Astro::PAL::DR2AS;
 }
 
 =item B<arcmin>
@@ -396,9 +396,9 @@ sub range {
       if ($rng eq 'NONE') {
 	# do nothing apart from store it
       } elsif ($rng eq '2PI') {
-	$self->_setRadians( Astro::SLA::slaDranrm( $rad ));
+	$self->_setRadians( Astro::PAL::palDranrm( $rad ));
       } elsif ($rng eq 'PI') {
-	$self->_setRadians( Astro::SLA::slaDrange( $rad ));
+	$self->_setRadians( Astro::PAL::palDrange( $rad ));
       } else {
 	warnings::warnif("Supplied range '$rng' not recognized");
 	return;
@@ -685,11 +685,13 @@ sub _cvt_torad {
     # non-numeric characters except + and - and replace with space
     # For now, remove all alphabetic characters and colon only
 
-    # Need to clean up the string for slalib
+    # Need to clean up the string for PAL
     $input =~ s/[:[:alpha:]]/ /g;
 
+    print("INPUT = '$input'\n");
+
     my $nstrt = 1;
-    Astro::SLA::slaDafin( $input, $nstrt, $output, my $j);
+    ($nstrt, $output, my $j) = Astro::PAL::palDafin( $input, $nstrt );
     $output = undef unless $j == 0;
 
     if ($j == -1) {
@@ -704,15 +706,15 @@ sub _cvt_torad {
 
   } elsif ($units =~ /^d/) {
     # Degrees decimal
-    $output = $input * Astro::SLA::DD2R;
+    $output = $input * Astro::PAL::DD2R;
 
   } elsif ($units =~ /^arcs/ || $units eq 'as') {
     # Arcsec
-    $output = $input * Astro::SLA::DAS2R;
+    $output = $input * Astro::PAL::DAS2R;
 
   } elsif ($units =~ /^arcm/ || $units eq 'am') {
     # Arcmin
-    $output = $input * Astro::SLA::DAS2R * 60 ;
+    $output = $input * Astro::PAL::DAS2R * 60 ;
 
   } else {
     # Already in radians
@@ -750,7 +752,7 @@ sub _guess_units {
   # if it does not look like a number choose sexagesimal
   if (!looks_like_number($input)) {
     $units = "sexagesimal";
-  } elsif ($input > Astro::SLA::D2PI) {
+  } elsif ($input > Astro::PAL::D2PI) {
     $units = "degrees";
   } else {
     $units = "radians";
@@ -773,8 +775,7 @@ Note that the number of decimal places is an argument.
 sub _r2f {
   my $self = shift;
   my $res = shift;
-  my @dmsf;
-  Astro::SLA::slaDr2af($res, $self->radians, my $sign, @dmsf);
+  my ($sign, @dmsf) = Astro::PAL::palDr2af($res, $self->radians);
   return ($sign, @dmsf);
 }
 
