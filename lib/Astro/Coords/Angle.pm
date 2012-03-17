@@ -247,7 +247,7 @@ sub components {
   # Get the angle in radians
   my $rad = $self->radians;
 
-  # Convert to components using slalib. COCO uses 4 dp for high
+  # Convert to components using PAL. COCO uses 4 dp for high
   # resolution.
   $res = 5 unless defined $res;
   my @dmsf = $self->_r2f( $res );

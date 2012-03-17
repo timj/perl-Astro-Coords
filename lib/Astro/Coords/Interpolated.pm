@@ -311,7 +311,7 @@ L<Astro::Coords::Elements>
 
 =head1 REQUIREMENTS
 
-Does not use any external SLALIB routines.
+Does not use any external PAL routines.
 
 =head1 AUTHOR
 

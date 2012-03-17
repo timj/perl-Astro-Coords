@@ -343,7 +343,7 @@ sub radec {
   my ($sys, $equ) = $self->_parse_equinox( shift || 'J2000' );
 
   # If we have proper motions we need to take them into account
-  # Do this using slaPm rather than via the base class since it
+  # Do this using palPm rather than via the base class since it
   # must be more efficient than going through apparent
   my @pm = $self->pm;
   my $par = $self->parallax;
@@ -367,7 +367,7 @@ sub radec {
     $rv = $self->rv if $self->vframe eq 'HEL';
 
     # Correct for proper motion
-    ($ra, $dec) = Astro::PAL::palPm( $ra, $dec, Astro::SLA::DAS2R * $pm[0], 
+    ($ra, $dec) = Astro::PAL::palPm( $ra, $dec, Astro::PAL::DAS2R * $pm[0],
                                      Astro::PAL::DAS2R * $pm[1], $par, $rv, 2000.0,
                                      Astro::PAL::palEpj($self->_mjd_tt));
 

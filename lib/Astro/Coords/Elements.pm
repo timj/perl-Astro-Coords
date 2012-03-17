@@ -23,7 +23,7 @@ use Carp;
 
 our $VERSION = '0.05';
 
-# Need working slaPlante
+# Need working palPlante
 use Astro::PAL 0.95 ();
 use Astro::Coords::Angle;
 use Time::Piece qw/ :override /;
@@ -85,7 +85,7 @@ suitable for comets:
  E 		 =  eccentricity e
  EPOCHPERIH      =  epoch of perihelion T (TT MJD)
 
-See the documentation to slaPlante() and slaPertel() for more information.
+See the documentation to palPlante() and palPertel() for more information.
 Keys must be upper case.
 
 For comets if the only one epoch is specified it is assumed that the
