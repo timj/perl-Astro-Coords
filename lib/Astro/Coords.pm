@@ -599,6 +599,7 @@ sub ha {
     $ha = $self->_lst - $self->ra_app;
     # Always normalize?
     $ha = new Astro::Coords::Angle::Hour( $ha, units => 'rad', range => 'PI' );
+    $self->_cache_write( "HA" => $ha );
   }
   return $ha->in_format( $opt{format} );
 }
