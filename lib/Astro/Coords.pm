@@ -2184,7 +2184,7 @@ sub vgalc {
   return (Astro::PAL::palRvgalc( $ra, $dec ) + $self->vlsrd);
 }
 
-=item B<vgalc>
+=item B<vlg>
 
 Velocity of the observer with respect to the Local Group in the
 direction of the target.
@@ -2231,6 +2231,10 @@ No correction for DUT1 is applied.
 
 sub _lst {
   my $self = shift;
+
+  my $cachedlst = $self->_cache_read_global_lst();
+  return $cachedlst if defined $cachedlst;
+
   my $time = $self->datetime;
   my $tel = $self->telescope;
 
@@ -2249,7 +2253,11 @@ sub _lst {
 				 $time->mday, $time->hour,
 				 $time->min, $sec, $long))[0];
 
-  return new Astro::Coords::Angle::Hour( $lst, units => 'rad', range => '2PI');
+  my $lstobject = new Astro::Coords::Angle::Hour( $lst, units => 'rad', range => '2PI');
+
+  $self->_cache_write_global_lst($lstobject);
+
+  return $lstobject;
 }
 
 =item B<_mjd_tt>
@@ -3036,6 +3044,49 @@ sub _cache_key {
     $self->{_CACHE_KEY} = shift;
   }
   return $self->{_CACHE_KEY};
+}
+
+
+use constant GLOBAL_CACHE_MAX => 1000;
+our %_cache_global_lst = ();
+our @_cache_global_lst = ();
+
+=item B<_cache_read_global_lst>
+
+Retrieves a value from the global cache of LST values.
+Returns undef if no value is available.
+
+  $lst = $self->_cache_read_global_lst();
+
+=cut
+
+sub _cache_read_global_lst {
+  my $self = shift;
+  my $key = $self->_cache_key();
+  return undef unless defined $key;
+  return $_cache_global_lst{$key};
+}
+
+=item B<_cache_write_global_lst>
+
+Writes a value into the global cache of LST values.
+
+  $self->_cache_write_global_lst($lst);
+
+=cut
+
+sub _cache_write_global_lst {
+  my $self = shift;
+  my $value = shift;
+  return unless defined $value;
+  my $key = $self->_cache_key();
+  return unless defined $key;
+  if (GLOBAL_CACHE_MAX < scalar @_cache_global_lst) {
+    my $remove = shift @_cache_global_lst;
+    delete $_cache_global_lst{$remove};
+  }
+  $_cache_global_lst{$key} = $value;
+  push @_cache_global_lst, $key;
 }
 
 =item B<_cache_ref>
