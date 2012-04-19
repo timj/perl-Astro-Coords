@@ -268,31 +268,37 @@ the position will be extrapolated.
 
 sub apparent {
   my $self = shift;
-  my $tel = $self->telescope;
-  my $long = (defined $tel ? $tel->long : 0.0 );
-  my $lat = (defined $tel ? $tel->lat : 0.0 );
 
-  my $mjd = $self->datetime->mjd;
   my $mjd1 = $self->mjd1;
   my $mjd2 = $self->mjd2;
-  my $ra1  = $self->ra1->radians;
-  my $ra2  = $self->ra2->radians;
-  my $dec1 = $self->dec1->radians;
-  my $dec2 = $self->dec2->radians;
 
-  my ($ra_app,$dec_app);
-  if ($self->mjd1 == $self->mjd2) {
+  my ($ra_app, $dec_app);
+
+  if ($mjd1 == $mjd2) {
     # special case when times are identical
-    $ra_app = $self->ra1;
-    $dec_app = $self->dec1;
-  } else {
+
+    $ra_app = $self->{ra1};
+    $dec_app = $self->{dec1};
+  }
+  else {
     # else linear interpolation
+
+    my $mjd = $self->datetime->mjd;
+    my $ra1  = $self->ra1->radians;
+    my $ra2  = $self->ra2->radians;
+    my $dec1 = $self->dec1->radians;
+    my $dec2 = $self->dec2->radians;
+
     $ra_app = $ra1  + ( $ra2  - $ra1  ) * ( $mjd - $mjd1 ) / ( $mjd2 - $mjd1 );
     $dec_app = $dec1 + ( $dec2 - $dec1 ) * ( $mjd - $mjd1 ) / ( $mjd2 - $mjd1 );
   }
 
-  return (new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI'),
-	  new Astro::Coords::Angle($dec_app, units => 'rad'));
+  $ra_app = new Astro::Coords::Angle::Hour($ra_app, units => 'rad', range => '2PI');
+  $dec_app = new Astro::Coords::Angle($dec_app, units => 'rad');
+
+  $self->_cache_write( "RA_APP" => $ra_app, "DEC_APP" => $dec_app );
+
+  return ($ra_app, $dec_app);
 }
 
 =back
