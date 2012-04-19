@@ -35,7 +35,7 @@ use Carp;
 
 use Astro::Coords::Angle;
 
-use constant PAZERO => new Astro::Coords::Angle( 0.0 );
+use constant PAZERO => new Astro::Coords::Angle( 0.0, units => 'radians' );
 
 use vars qw/ @PROJ  @SYSTEMS /;
 

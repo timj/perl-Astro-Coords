@@ -53,7 +53,7 @@ sub new {
   my $class = ref($proto) || $proto;
   my %args = @_;
 
-  my $self = $class->SUPER::new( az => 0.0, el => 90.0 );
+  my $self = $class->SUPER::new( az => 0.0, el => 90.0, units => 'deg' );
   $self->name( $args{name} ) if exists $args{name};
 
   return $self;
