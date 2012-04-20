@@ -688,8 +688,6 @@ sub _cvt_torad {
     # Need to clean up the string for PAL
     $input =~ s/[:[:alpha:]]/ /g;
 
-    print("INPUT = '$input'\n");
-
     my $nstrt = 1;
     ($nstrt, $output, my $j) = Astro::PAL::palDafin( $input, $nstrt );
     $output = undef unless $j == 0;
