@@ -402,6 +402,47 @@ sub clone {
 		   );
 }
 
+=item B<offsets_rotated>
+
+This can be thought of as a version of C<offsets> which returns offsets which
+have been rotated through the position angle.  It uses the C<offsets> method
+internally to fetch the stored values.  Results are C<Astro::Coords::Angle>
+objects.
+
+  ($x_rotated, $y_rotated) = $offset->offsets_rotated();
+
+It is assumed that the coordinate system has the first coordinate being
+positive to the East in order to match the definiton of the
+C<posang> given above.
+
+=cut
+
+sub offsets_rotated {
+  my $self  = shift;
+  my $paobj = $self->posang();
+
+  # If position angle not specified, assume zero.
+  return $self->offsets() unless defined $paobj;
+
+  # Also do nothing if the angle is zero.
+  my $pa = $paobj->radians();
+  return $self->offsets() if $pa == 0.0;
+
+  my ($x, $y) = map {$_->arcsec()} $self->offsets();
+
+  # This code taken from OMP::Translator::Base::PosAngRot
+  # which could now be defined in terms of this method,
+  # except that it does not use an Astro::Coords::Offset.
+
+  my $cospa = cos($pa);
+  my $sinpa = sin($pa);
+
+  my $xr =   $x * $cospa  +  $y * $sinpa;
+  my $yr = - $x * $sinpa  +  $y * $cospa;
+
+  return map {new Astro::Coords::Angle($_, units => 'arcsec')} ($xr, $yr);
+}
+
 =back
 
 =head1 SEE ALSO
