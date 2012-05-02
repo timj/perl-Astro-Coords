@@ -444,58 +444,6 @@ sub offsets_rotated {
   return map {new Astro::Coords::Angle($_, units => 'arcsec')} ($xr, $yr);
 }
 
-=item B<apply_offsets>
-
-Applies the offsets to an C<Astro::Coords> object.
-
-  my $coords_offset = $offset->apply_offsets($coords);
-
-The current implementation works by calling C<ra2000> and C<dec2000>
-on the original object and will return a new C<Astro::Coords::Equatorial>
-object.
-
-=cut
-
-sub apply_offset {
-  my $self = shift;
-  my $coords = shift;
-
-  # Check that the current implementation can handle the situation.
-
-  croak 'apply_offet: argument should be an Astro::Coords object'
-    unless UNIVERSAL::isa($coords, 'Astro::Coords');
-
-  croak 'apply_offset: can only use TAN projection'
-    unless $self->projection() eq 'TAN';
-
-  croak 'apply_offset: can only use J2000 system'
-    unless $self->system() eq 'J2000';
-
-  # Apply offsets to J2000 coordinates and create a new object from them.
-
-  my ($dra, $ddec) = map {$_->radians()} $self->offsets_rotated();
-
-  my ($ra, $dec) = Astro::PAL::palDtp2s($dra, $ddec,
-                                        $coords->ra2000()->radians(),
-                                        $coords->dec2000()->radians());
-
-  my $coordsoffset = new Astro::Coords(type  => 'J2000',
-                                       ra    => $ra,
-                                       dec   => $dec,
-                                       units => 'radians');
-
-  # Copy across additional data.
-
-  foreach my $method (qw/name telescope datetime comment/) {
-    my $value = $coords->$method();
-    next unless defined $value;
-    next if $method eq 'comment' && $value eq '';
-    $coordsoffset->$method($value);
-  }
-
-  return $coordsoffset;
-}
-
 =back
 
 =head1 SEE ALSO

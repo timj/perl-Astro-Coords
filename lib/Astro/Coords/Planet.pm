@@ -256,6 +256,19 @@ sub vframe {
   return 'GEO';
 }
 
+=item B<apply_offset>
+
+Overrided method to warn if C<Astro::Coords::apply_offset> is
+called on this subclass.
+
+=cut
+
+sub apply_offset {
+  my $self = shift;
+  warn 'apply_offset: applying offset to planet position for a specific time';
+  return $self->SUPER::apply_offset(@_);
+}
+
 =back
 
 =begin __PRIVATE_METHODS__

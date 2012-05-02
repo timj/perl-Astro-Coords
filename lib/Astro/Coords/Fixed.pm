@@ -343,6 +343,17 @@ sub transit_el {
   return ();
 }
 
+=item B<apply_offset>
+
+Overrided method to prevent C<Astro::Coords::apply_offset> being
+called on this subclass.
+
+=cut
+
+sub apply_offset {
+  croak 'apply_offset: attempting to apply an offset to fixed coordinates';
+}
+
 =back
 
 =head1 NOTES

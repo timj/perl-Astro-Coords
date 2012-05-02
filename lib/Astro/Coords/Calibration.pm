@@ -22,6 +22,7 @@ calibration observations always are an available target).
 use 5.006;
 use strict;
 use warnings;
+use Carp;
 
 our $VERSION = '0.03';
 
@@ -150,6 +151,17 @@ sub summary {
   my $name = $self->name;
   $name = '' unless defined $name;
   return sprintf("%-16s  %-12s  %-13s    CAL",$name,'','');
+}
+
+=item B<apply_offset>
+
+Overrided method to prevent C<Astro::Coords::apply_offset> being
+called on this subclass.
+
+=cut
+
+sub apply_offset {
+  croak 'apply_offset: attempting to apply an offset to a calibration';
 }
 
 =back

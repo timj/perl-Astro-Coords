@@ -1740,6 +1740,76 @@ sub transit_el {
   return $el;
 }
 
+=item B<apply_offset>
+
+Applies the offsets of an C<Astro::Coords::Offset> object.
+
+  my $coords_offset = $coords->apply_offset($offset);
+
+The current implementation works by calling C<radec2000> or C<glonglat>
+on the original object and will return a new C<Astro::Coords::Equatorial>
+object.
+
+=cut
+
+sub apply_offset {
+  my $self   = shift;
+  my $offset = shift;
+
+  # Check that the current implementation can handle the situation.
+
+  croak 'apply_offet: argument should be an Astro::Coords::Offset object'
+    unless UNIVERSAL::isa($offset, 'Astro::Coords::Offset');
+
+  croak 'apply_offset: can only use TAN projection'
+    unless $offset->projection() eq 'TAN';
+
+  my $coordsoffset = undef;
+
+  if ($offset->system() eq 'J2000') {
+    # Apply offsets to J2000 coordinates and create a new object from them.
+
+    my ($dra, $ddec) = map {$_->radians()} $offset->offsets_rotated();
+
+    my ($ra, $dec) = Astro::PAL::palDtp2s($dra, $ddec,
+                       map {$_->radians()} $self->radec2000());
+
+    $coordsoffset = new Astro::Coords(type  => 'J2000',
+                                      ra    => $ra,
+                                      dec   => $dec,
+                                      units => 'radians');
+  }
+  elsif ($offset->system() eq 'GAL') {
+    # Apply offsets to galactic coordinates and create a new object from them.
+
+    my ($dlon, $dlat) = map {$_->radians()} $offset->offsets_rotated();
+
+    my ($lon, $lat) = Astro::PAL::palDtp2s($dlon, $dlat,
+                       map {$_->radians()} $self->glonglat());
+
+    $coordsoffset = new Astro::Coords(type  => 'GAL',
+                                      long  => $lon,
+                                      lat   => $lat,
+                                      units => 'radians');
+  }
+  else {
+    croak 'apply_offset: can only use J2000 or GAL system';
+  }
+
+  croak 'apply_offset: failed to create object' unless defined $coordsoffset;
+
+  # Copy across additional data.
+
+  foreach my $method (qw/name telescope datetime comment/) {
+    my $value = $self->$method();
+    next unless defined $value;
+    next if $method eq 'comment' && $value eq '';
+    $coordsoffset->$method($value);
+  }
+
+  return $coordsoffset;
+}
+
 =back
 
 =head2 Velocities
