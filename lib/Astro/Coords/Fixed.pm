@@ -64,7 +64,7 @@ Note that the declination is equivalent to "Apparent Dec" used
 elsewhere in these classes.
 
 Azimuth and Elevation is the internal format. Currently there is no
-caching (so there is always overhead converting to apparent 
+caching (so there is always overhead converting to apparent
 RA and Dec) since there is no cache flushing when the telescope
 is changed.
 
@@ -220,7 +220,7 @@ sub summary {
 
 =item B<array>
 
-Array summarizing the object. Retuns 
+Array summarizing the object. Retuns
 Return back 11 element array with first 3 elements being the
 coordinate type (FIXED) and the az/el coordinates
 (radians).

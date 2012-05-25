@@ -8,11 +8,11 @@ Astro::Coords::Offset - Represent an offset from a base position
 
   use Astro::Coords::Offset;
 
-  my $offset = new Astro::Coords::Offset( 10, 20, 
+  my $offset = new Astro::Coords::Offset( 10, 20,
                                           system => 'J2000',
                                           projection => "TAN" );
 
-  my $offset = new Astro::Coords::Offset( $ang1, $ang2, 
+  my $offset = new Astro::Coords::Offset( $ang1, $ang2,
                                           system => 'J2000',
                                           projection => "TAN" );
 
@@ -79,10 +79,10 @@ arguments (defaulting to TAN and J2000 respectively).
 
   my $off = new Astro::Coords::Offset( 10, -20 );
 
-  my $off = new Astro::Coords::Offset( @off, system => "AZEL", 
+  my $off = new Astro::Coords::Offset( @off, system => "AZEL",
                                              projection => "SIN");
 
-  my $off = new Astro::Coords::Offset( @off, system => "AZEL", 
+  my $off = new Astro::Coords::Offset( @off, system => "AZEL",
                                              projection => "SIN",
                                              posang => $pa,
                                      );
@@ -207,7 +207,7 @@ in use. See the C<tracking_system> attribute for more details.
 
 sub system {
   my $self = shift;
-  if (@_) { 
+  if (@_) {
     my $p = shift;
     $p = uc($p);
     $p = "AZEL" if $p eq 'AZ/EL';
@@ -277,13 +277,13 @@ Defaults to tangent plane. Allowed options are TAN, SIN or ARC.
 
 sub projection {
   my $self = shift;
-  if (@_) { 
+  if (@_) {
     my $p = shift;
     $p = uc($p);
     my $match = join("|",@PROJ);
     croak "Unknown projection '$p'"
       unless $p =~ /^$match$/;
-    $self->{PROJECTION} = $p; 
+    $self->{PROJECTION} = $p;
   }
   return $self->{PROJECTION};
 }
@@ -343,7 +343,7 @@ is not permitted.
 
 sub tracking_system {
   my $self = shift;
-  if (@_) { 
+  if (@_) {
     my $p = shift;
     $p = uc($p);
     croak "Tracking System can not itself be 'TRACKING'"

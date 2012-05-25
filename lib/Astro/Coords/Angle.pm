@@ -35,7 +35,7 @@ use Scalar::Util qw/ looks_like_number /;
 use Astro::PAL;
 
 # Overloading
-use overload 
+use overload
   '""' => "stringify",
   '0+' => "numify",
   fallback => 1;
@@ -541,7 +541,7 @@ initial state.
   my $NDP = $DEFAULT_NDP;
   sub NDP {
     my $class = shift;
-    if (@_) { 
+    if (@_) {
       my $arg = shift;
       if (defined $arg) {
 	$NDP = $arg;
@@ -581,7 +581,7 @@ to the default state.
   my $DELIM = $DEFAULT_DELIM;
   sub DELIM {
     my $class = shift;
-    if (@_) { 
+    if (@_) {
       my $arg = shift;
       if (defined $arg) {
 	$DELIM = $arg;

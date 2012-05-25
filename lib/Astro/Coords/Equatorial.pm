@@ -36,7 +36,7 @@ This class is used by C<Astro::Coords> for handling coordinates
 specified in a fixed astronomical coordinate frame.
 
 You are not expected to use this class directly, the C<Astro::Coords>
-class should be used for all access (the C<Astro::Coords> constructor 
+class should be used for all access (the C<Astro::Coords> constructor
 is treated as a factory constructor).
 
 If proper motions and parallax information are supplied with a
@@ -361,7 +361,7 @@ sub radec {
     # Radial velocity in HEL frame
     # Note that we need to calculate the RA/Dec to get the HEL frame
     # if the radial velocity is not already in HEL
-    # We have to ignore it for now and only use rv if it is 
+    # We have to ignore it for now and only use rv if it is
     # already heliocentric
     my $rv = 0;
     $rv = $self->rv if $self->vframe eq 'HEL';

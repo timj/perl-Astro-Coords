@@ -106,7 +106,7 @@ This method has no effect on the base class.
   my $NDP = $DEFAULT_NDP;
   sub NDP {
     my $class = shift;
-    if (@_) { 
+    if (@_) {
       my $arg = shift;
       if (defined $arg) {
 	$NDP = $arg;
@@ -130,7 +130,7 @@ any effect on the base class.
   my $DELIM = $DEFAULT_DELIM;
   sub DELIM {
     my $class = shift;
-    if (@_) { 
+    if (@_) {
       my $arg = shift;
       if (defined $arg) {
 	$DELIM = $arg;

@@ -180,7 +180,7 @@ on another Elements object.
 
 Fixed astronomical oordinate frames can be specified using:
 
-  $c = new Astro::Coords( ra => 
+  $c = new Astro::Coords( ra =>
                           dec =>
 			  long =>
 			  lat =>
@@ -314,7 +314,7 @@ This method checks that the argument is of the correct type.
 
 sub telescope {
   my $self = shift;
-  if (@_) { 
+  if (@_) {
     my $tel = shift;
     return undef unless UNIVERSAL::isa($tel, "Astro::Telescope");
     $self->{Telescope} = $tel;
@@ -1136,7 +1136,7 @@ sub status {
 
     # Transit time
     my $mt = $self->meridian_time;
-    $string .= "Time of next transit: " . 
+    $string .= "Time of next transit: " .
       (defined $mt ? $mt->datetime : "<never>") ."\n";
 
     my $t_el = $self->transit_el(format=>'d');
@@ -1196,7 +1196,7 @@ gap exactly. None of the returned times will exceed the end time. The
 increment must be greater than zero but the start and end times can be
 identical.
 
-Returns an array of hashes. Each hash contains 
+Returns an array of hashes. Each hash contains
 
   time [same object class as provided as argument]
   elevation
@@ -1233,7 +1233,7 @@ sub calculate {
   # Determine date class to use for calculations
   my $dateclass = blessed( $opt{start} );
   croak "Start time must be either Time::Piece or DateTime object"
-    if (!$dateclass || 
+    if (!$dateclass ||
 	($dateclass ne "Time::Piece" && $dateclass ne 'DateTime' ));
 
   my @data;
@@ -1466,7 +1466,7 @@ sub ha_set {
   # If we are the Sun we need to convert this to solar time
   # time from sidereal time
   $ha0 *= 365.2422/366.2422
-    unless (defined $self->name && 
+    unless (defined $self->name &&
             lc($self->name) eq 'sun' && $self->isa("Astro::Coords::Planet"));
 
 
@@ -1490,7 +1490,7 @@ By default the next transit following the current time is calculated and
 returned as a C<Time::Piece> or C<DateTime> object (depending on what
 is stored in C<datetime>).
 
-If you want control over which transit should be calculated this can be 
+If you want control over which transit should be calculated this can be
 specified using the "event" hash key:
 
   $mt = $c->meridian_time( event => 1 );
@@ -1662,7 +1662,7 @@ sub _calc_mtime {
   return $mtime;
 }
 
-# Returns true if 
+# Returns true if
 #    time - reftime is negative
 
 # Returns RA-LST added on to reference time
@@ -2000,7 +2000,7 @@ method).
 
 Default definitions and frames will be used if none were specified.
 
-The doppler factors (defined as  frequency/rest frequency or 
+The doppler factors (defined as  frequency/rest frequency or
 rest wavelength / wavelength) are calculated as follows:
 
  RADIO:    1 - v / c
@@ -2077,7 +2077,7 @@ as the second argument to vdiff.
 The two arguments are mandatory but if either are 'undef' they are converted
 to the target velocity frame (see C<vdefn> method).
 
-The second example is simply equivalent to 
+The second example is simply equivalent to
 
   $vd = $c->vhelio - $c->vlsrk;
 
@@ -2531,7 +2531,7 @@ sub _rise_set_time {
   my $event_time;
   if ($event == -1) {
     # We want the nearest time that is earlier than reference time
-    # Start from the end and jump out when 
+    # Start from the end and jump out when
     for my $t (reverse @times) {
       if ($t->epoch <= $reftime->epoch) {
 	$event_time = $t;
@@ -2694,7 +2694,7 @@ sub _iterative_el {
 	  # we can abort if we are below the time resolution
 	  last if $inc < $smallinc;
 
-	  # reverse 
+	  # reverse
 	  $reverse = 1 if ($diff_to_prev / $diff_to_curr < 0);
 	} else {
 	  # abort if the inc is too small
@@ -2777,7 +2777,7 @@ sub _isdt {
 
   $test = $self->datetime unless defined $test;
 
-  # Check Time::Piece first since there is a possibility that 
+  # Check Time::Piece first since there is a possibility that
   # this is really a subclass of DateTime
   my $dtime;
   if ($test->isa( "Time::Piece")) {
@@ -3095,7 +3095,7 @@ sub _calc_cache_key {
   $addendum = $dt->nanosecond if $dt->can("nanosecond");
 
   # Use date + telescope name as key
-  $self->_cache_key($telName . "_" . $dt->epoch. $addendum); 
+  $self->_cache_key($telName . "_" . $dt->epoch. $addendum);
 }
 
 =item B<_cache_key>

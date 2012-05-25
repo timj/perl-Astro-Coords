@@ -59,7 +59,7 @@ suitable for the major planets:
  ANODE 		 =  longitude of the ascending node  [$\Omega$] (radians)
  PERIH 		 =  longitude of perihelion  [$\varpi$] (radians)
  AORQ 		 =  mean distance a (AU)
- E 		 =  eccentricity e 
+ E 		 =  eccentricity e
  AORL 		 =  mean longitude L (radians)
  DM 		 =  daily motion n (radians)
 
@@ -260,7 +260,7 @@ sub array {
   }
 
   return ( $self->type, undef, undef,
-	   $epoch, $el{ORBINC}, $el{ANODE}, $el{PERIH}, 
+	   $epoch, $el{ORBINC}, $el{ANODE}, $el{PERIH},
 	   $el{AORQ}, $el{E}, $el{AORL}, $lastel);
 }
 
@@ -282,7 +282,7 @@ sub type {
 
 =item B<stringify>
 
-Stringify overload. Returns comma-separated list of 
+Stringify overload. Returns comma-separated list of
 the elements.
 
 =cut
@@ -373,7 +373,7 @@ sub apparent {
 #    print "After perturbing: " .Dumper(\%el);
       croak "Error perturbing elements for target ".
 	(defined $self->name ? $self->name : '' )
-	  ." [status=$jstat]" 
+	  ." [status=$jstat]"
 	    if $jstat != 0;
     }
 
