@@ -14,7 +14,7 @@ This software is still a beta release but is in use in a production
 environment. The interfaces may still change slightly.
 
 It is a wrapper class around Astro::PAL that simplifies the handling of
-astronomical coordinate systems. 
+astronomical coordinate systems.
 
 Requirements
 ------------
@@ -41,7 +41,7 @@ Author
 This module was written by Tim Jenness <tjenness@cpan.org>
 of the Joint Astronomy Centre.
 
-Copyright (C) 2008,2010 Science and Technologiy Facilities Council.
+Copyright (C) 2008-2012 Science and Technologiy Facilities Council.
 Copyright (C) 2001-2005 Particle Physics and Astronomy Research Council.
 All Rights Reserved.
 
