@@ -116,3 +116,6 @@ v0.12 - + Update Elements interface
 
 v0.13 - + Use Astro::PAL instead of Astro::SLA. The main driver being that
           Astro::PAL can be installed from CPAN without any additional dependencies.
+        + Significant speed improvements thanks to Graham Bell <g.bell@jach.hawaii.edu>.
+        + New apply_offset() method to add an Offset onto an existing coordinate
+          object and return a new coordinate object (Graham Bell)

@@ -5,7 +5,7 @@ use warnings;
 use Module::Build;
 use File::Spec;
 
-# Copyright (C) 2010 Science and Technology Facilities Council.
+# Copyright (C) 2010-2012 Science and Technology Facilities Council.
 # All Rights Reserved.
 
 # This program is free software; you can redistribute it and/or modify
@@ -35,19 +35,23 @@ my $build = Module::Build->new
    author => [
               'Tim Jenness <t.jenness@jach.hawaii.edu>',
              ],
-   dist_version => '0.12',
+   dist_version => '0.13',
    meta_merge => {
                resources =>  {
                               repository => "git://github.com/timj/perl-Astro-Coords.git",
+                              homepage => "http://github.com/timj/perl-Astro-Coords/tree/master",
                              },
                 },
    requires => {
                 'Scalar::Util' => 1.13,
                 'Astro::PAL' => 0,
                 'Time::Piece' => 1.02,
-                'Astro::Telescope' => 0.60,
+                'Astro::Telescope' => 0.71,
                 'DateTime' => 0,
                },
+   configure_requires => {
+                          "Module::Build" => 0.30,
+                         },
    build_requires => {
                       'Test::More' => 0,
                      },
