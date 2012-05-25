@@ -265,7 +265,7 @@ called on this subclass.
 
 sub apply_offset {
   my $self = shift;
-  warn 'apply_offset: applying offset to planet position for a specific time';
+  warn "apply_offset: applying offset to planet position for a specific time.\n";
   return $self->SUPER::apply_offset(@_);
 }
 

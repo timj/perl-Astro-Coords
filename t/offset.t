@@ -1,7 +1,7 @@
 #!perl
 
 use strict;
-use Test::More tests => 20;
+use Test::More tests => 23;
 use Data::Dumper;
 
 require_ok("Astro::Coords");
@@ -66,28 +66,31 @@ sub nearly_equal {
 my ($o, $c)= new Astro::Coords::Offset(0, 0);
 
 $c = new Astro::Coords(planet => 'venus');
-print STDERR "\nShould see a warning about planets.\n";
-$c->apply_offset($o);
+test_apply_offset_warn( $c, $o, "Planet offsets should warn" );
 
-eval {
-  $c = new Astro::Coords(az => 345, el => 45);
-  $c->apply_offset($o);
-};
-ok($@ =~ /^apply_offset/, 'Can not offset fixed coordinates');
+{
+  local $@;
+  eval {
+    $c = new Astro::Coords(az => 345, el => 45);
+    $c->apply_offset($o);
+  };
+  ok($@ =~ /^apply_offset/, 'Can not offset fixed coordinates');
+}
 
-eval {
-  $c = new Astro::Coords();
-  $c->apply_offset($o);
-};
-ok($@ =~ /^apply_offset/, 'Can not offset calibrations');
-
+{
+  local $@;
+  eval {
+    $c = new Astro::Coords();
+    $c->apply_offset($o);
+  };
+  ok($@ =~ /^apply_offset/, 'Can not offset calibrations');
+}
 
 $c = new Astro::Coords(mjd1 => 50000, mjd2 => 50000,
                        ra1 => 1.2, dec1 => 0.4,
                        ra2 => 1.3, dec2 => 0.5,
                        units => 'radians');
-print STDERR "\nShould see a warning about interpolated coordinates.\n";
-$c->apply_offset($o);
+test_apply_offset_warn( $c, $o, "Interpolated offsets should warn" );
 
 $c = new Astro::Coords(elements => {
                                      # from JPL horizons, from t/basic.t
@@ -100,8 +103,7 @@ $c = new Astro::Coords(elements => {
                                      E => 0.9949722217794675,
                                     },
                       name => "Hale-Bopp");
-print STDERR "\nShould see a warning about orbital elements.\n";
-$c->apply_offset($o);
+test_apply_offset_warn( $c, $o, "Orbital elements offsets should warn" );
 
 $c = new Astro::Coords(long => '05:22:56.00',
                        lat  => '-06:20:40.40',
@@ -115,3 +117,21 @@ $cc = $c->apply_offset(new Astro::Coords::Offset(0, 10, system => 'GAL'));
 ($glon, $glat) = map {$_->in_format('sex')} $cc->glonglat();
 is($glon, '05:22:56.00', 'galactic long no change');
 is($glat, '-06:20:30.40', 'galactic lat');
+
+
+exit;
+
+# Helper function to test for a warning
+sub test_apply_offset_warn {
+  my $c = shift;
+  my $o = shift;
+  my $comment = shift;
+
+  my $result;
+  local $SIG{__WARN__} = sub {
+    my $arg = shift;
+    $result = ( $arg =~ /^apply_offset:.*specific time/ );
+  };
+  $c->apply_offset($o);
+  ok( $result, $comment );
+}
