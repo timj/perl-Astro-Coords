@@ -86,6 +86,8 @@ sub in_format {
   return $self->SUPER::in_format( $format );
 }
 
+=back
+
 =head2 Class Methods
 
 The following methods control the default behaviour of the class.
