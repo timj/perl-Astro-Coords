@@ -1,8 +1,9 @@
 #!perl
 
 use strict;
-use Test::More tests => 23;
-use Data::Dumper;
+use Test::More tests => 36;
+use Test::Number::Delta;
+use Scalar::Util qw/ looks_like_number /;
 
 require_ok("Astro::Coords");
 require_ok("Astro::Telescope");
@@ -39,11 +40,21 @@ $coords->datetime($date);
 $off = Astro::Coords::Offset->new(0, 0);
 my $coordsoff = $coords->apply_offset($off);
 
-my $dd1 = new Data::Dumper([$coords]);
-my $dd2 = new Data::Dumper([$coordsoff]);
-$dd1->Sortkeys(1);
-$dd2->Sortkeys(1);
-is($dd1->Dump(), $dd2->Dump(), 'Before and after offset: no change');
+# Ensure that the basic position is the same for the new
+# (0,0) offset
+my @refpos = $coords->array();
+my @newpos = $coordsoff->array();
+is (scalar(@refpos), scalar(@newpos), "array() returns same number of items");
+for my $i (0..$#refpos) {
+  if (defined $refpos[$i] && defined $newpos[$i] &&
+      looks_like_number($refpos[$i])) {
+    delta_ok( $newpos[$i], $refpos[$i], "Compare element $i");
+  } else {
+    is( $newpos[$i], $refpos[$i], "Compare element $i");
+  }
+}
+is_deeply( $coordsoff->datetime, $coords->datetime, "Check date time object");
+is_deeply( $coordsoff->telescope, $coords->telescope, "Check telescop");
 
 $off = new Astro::Coords::Offset(
   new Astro::Coords::Angle(0.001, unit => 'radians'),

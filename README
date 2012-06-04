@@ -119,3 +119,5 @@ v0.13 - + Use Astro::PAL instead of Astro::SLA. The main driver being that
         + Significant speed improvements thanks to Graham Bell <g.bell@jach.hawaii.edu>.
         + New apply_offset() method to add an Offset onto an existing coordinate
           object and return a new coordinate object (Graham Bell)
+
+v0.14   + Fix tests for long double perl. Build now requires Test::Number::Delta.

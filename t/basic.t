@@ -1,6 +1,8 @@
 #!perl
 use strict;
 use Test::More tests => 98;
+use Test::Number::Delta within => 1e-9;
+use Scalar::Util qw/ looks_like_number /;
 
 require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
@@ -37,8 +39,8 @@ my $c2 = new Astro::Coords(ra => "15:22:33.3",
 	                   dec => "-0:14:4.5",
 			   type => "B1950");
 
-is(sprintf("%.1f",scalar($c->distance($c2))*&Astro::PAL::DR2AS), '60.0',
-  "calculate distance");
+delta_within(scalar($c->distance($c2))*&Astro::PAL::DR2AS, '60.0',
+  1.0e-4, "calculate distance");
 
 # Set telescope
 my $tel = new Astro::Telescope('JCMT');
@@ -322,7 +324,11 @@ sub test_array_elem {
   is($#$ansref, $#$testref, "Compare number of elements in array");
 
   for my $i (0..$#$testref) {
-    is($ansref->[$i], $testref->[$i], "Compare array element $i");
+    if (defined $ansref->[$i] && looks_like_number($ansref->[$i])) {
+      delta_ok($ansref->[$i], $testref->[$i], "Compare array element $i");
+    } else {
+      is($ansref->[$i], $testref->[$i], "Compare array element $i");
+    }
   }
 
 }
