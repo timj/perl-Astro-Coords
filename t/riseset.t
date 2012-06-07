@@ -5,6 +5,7 @@
 
 use strict;
 use Test::More tests => 295;
+use Test::Number::Delta;
 use Time::Piece qw/ :override /;
 use DateTime;
 use DateTime::TimeZone;
@@ -189,9 +190,10 @@ for my $targ (sort keys %data) {
     my $dt = $refdate->clone->add( hours => $m->[0] );
     $c->datetime( $dt );
 
+    # We only have USNO tables to 0.1 deg accuracy
     print "# El: ". $c->el(format=>'deg') ." cf. ". $m->[1] ."\n";
-    is( sprintf("%.1f",$c->el(format => 'deg')), $m->[1],"Test elevation");
-    is( sprintf("%.1f",$c->az(format => 'deg')), $m->[2],"Test azimuth");
+    delta_within($c->el(format => 'deg'), $m->[1], 0.1, "Test elevation");
+    delta_within($c->az(format => 'deg'), $m->[2], 0.1, "Test azimuth");
 
     # for the rise times and set times, step back a minute to make sure
     # we get to the correct "next" event (given the minute accuracy in the

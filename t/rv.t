@@ -5,6 +5,7 @@
 
 use strict;
 use Test::More tests => 30;
+use Test::Number::Delta within => 0.01;
 use DateTime;
 
 require_ok('Astro::Coords');
@@ -15,7 +16,7 @@ require_ok('Astro::Telescope');
 my $tel = new Astro::Telescope( 'JCMT' );
 
 my $dt = DateTime->new( year => 2001, month => 9, day => 14, time_zone => 'UTC');
-is( $dt->jd, 2452166.5, "Check JD");
+delta_ok( $dt->jd, 2452166.5, "Check JD");
 
 # create coordinate object
 my $c = new Astro::Coords( ra => '15 22 33.30',
@@ -48,28 +49,28 @@ is( $dec->string, "-00 24 45.16", "check Dec(app)");
 
 # Galactic
 my ($long, $lat) = $c->glonglat;
-is( sprintf('%.4f',$long->degrees), 2.5993, "check Galactic longitude");
-is( sprintf('%.4f',$lat->degrees), '43.9470', "check Galactic latitude");
+delta_within( $long->degrees, 2.59927, 1e-4, "check Galactic longitude");
+delta_within( $lat->degrees, 43.94701, 1e-4, "check Galactic latitude");
 
 # Ecliptic
 ($long, $lat) = $c->ecllonglat;
-is( sprintf('%.4f',$long->degrees), 228.9892, "check Ecliptic longitude");
-is( sprintf('%.4f',$lat->degrees), 17.6847, "check Ecliptic latitude");
+delta_within( $long->degrees, 228.9892, 1e-4, "check Ecliptic longitude");
+delta_within( $lat->degrees, 17.6847, 1e-4, "check Ecliptic latitude");
 
 # For epoch [could test the entire run every 30 minutes]
 
 my $el = $c->el( format => 'deg' );
-is( sprintf( '%.1f', ( 90 - $el)), 38.8,'Check zenith distance');
+delta_within( ( 90 - $el), 38.8, 0.1, 'Check zenith distance');
 
-is( sprintf('%.2f',$c->verot), -0.24,
+delta_ok( $c->verot, -0.24,
     'Obs velocity wrt to the Earth geocentre in dir of target');
-is( sprintf('%.2f',$c->vhelio), 23.38, 'Obs velocity wrt the Sun in direction of target');
+delta_ok( $c->vhelio, 23.38, 'Obs velocity wrt the Sun in direction of target');
 print "# Barycentric velocity: ". $c->vbary. " cf Heliocentric: ".
   $c->vhelio."\n";
-is( sprintf('%.2f',$c->vlsrk),  10.13, 'Obs velocity wrt LSRK in direction of target');
-is( sprintf('%.2f',$c->vlsrd), 11.66, 'Obs velocity wrt LSRD in direction of target');
-is( sprintf('%.2f',$c->vgalc), 4.48, 'Obs velocity wrt Galaxy in direction of target');
-is( sprintf('%.2f',$c->vlg), 13.59, 'Obs velocity wrt Local Group in direction of target');
+delta_ok( $c->vlsrk,  10.13, 'Obs velocity wrt LSRK in direction of target');
+delta_ok( $c->vlsrd, 11.66, 'Obs velocity wrt LSRD in direction of target');
+delta_ok( $c->vgalc, 4.48, 'Obs velocity wrt Galaxy in direction of target');
+delta_ok( $c->vlg, 13.59, 'Obs velocity wrt Local Group in direction of target');
 
 is( $c->vdiff( 'LSRK', 'LSRD'), ($c->vlsrk - $c->vlsrd), "diff of two velocity frames");
 
@@ -99,7 +100,7 @@ SKIP: {
   isa_ok( $tel, 'Astro::Telescope' );
   $c->telescope( $tel );
 
-  is( sprintf('%.2f', $c->vhelio), 7.97, 'Heliocentric velocity');
+  delta_ok( $c->vhelio, 7.97, 'Heliocentric velocity');
 }
 
 # Radial velocity and doppler correction
@@ -125,5 +126,5 @@ $c = new Astro::Coords( ra => '16 43 52',
 is($c->vdefn, 'RADIO', 'check velocity definition');
 is($c->vframe, 'LSRK', 'check velocity frame');
 is($c->rv, 20, 'check velocity');
-is($c->obsvel, (20 + $c->vlsrk), "velocity between observer and target");
+delta_ok($c->obsvel, (20 + $c->vlsrk), "velocity between observer and target");
 print "# Doppler correction : ". $c->doppler. "\n";

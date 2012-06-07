@@ -39,8 +39,8 @@ delta_ok($ang->degrees, 180, "compare sexagesimal hour to deg ($ang)");
 
 # Make sure that decimal hours works
 $ang = new Astro::Coords::Angle::Hour( 12, units => 'hour' );
-is($ang->degrees, 180, "compare hour to deg");
-is($ang->hours, 12, "compare hour to hour");
+delta_ok($ang->degrees, 180, "compare hour to deg");
+delta_ok($ang->hours, 12, "compare hour to hour");
 
 
 my $ra = new Astro::Coords::Angle::Hour( '12h13m45.6s', units => 'sex',
@@ -53,16 +53,16 @@ isa_ok( $ra, "Astro::Coords::Angle::Hour");
 # guess units
 
 my $ang3 = new Astro::Coords::Angle( 45 );
-is($ang3->degrees, 45, "Check 45 deg without units");
+delta_ok($ang3->degrees, 45, "Check 45 deg without units");
 
 my $ang4 = new Astro::Coords::Angle( '45:00:00' );
 delta_ok($ang4->degrees, 45, "Check 45:00:00 deg without units");
 
 my $rad = 0.5;
 my $ang5 = new Astro::Coords::Angle( $rad );
-is($ang5->radians, 0.5, "Check 0.5 rad is still 0.5 rad");
+delta_ok($ang5->radians, 0.5, "Check 0.5 rad is still 0.5 rad");
 
 # check that defaulting is correct for Hours
 my $hour = 12;
 my $ang6 = new Astro::Coords::Angle::Hour( $hour );
-is( $ang6->hours, 12, "Default guess of units");
+delta_ok( $ang6->hours, 12, "Default guess of units");

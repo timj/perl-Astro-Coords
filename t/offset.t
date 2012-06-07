@@ -22,13 +22,13 @@ is( $off->system, "J2008.5", "Check system conversion");
 # Check offset rotations against those displayed by the OT.
 $off = Astro::Coords::Offset->new(100, 0, posang => 45);
 my ($x, $y) = map {$_->arcsec()} $off->offsets_rotated();
-is(sprintf('%.1f', $x),  70.7, 'Rotated offset: 100,0,45 x');
-is(sprintf('%.1f', $y), -70.7, 'Rotated offset: 100,0,45 y');
+delta_ok( $x,  70.710678, 'Rotated offset: 100,0,45 x');
+delta_ok( $y, -70.710678, 'Rotated offset: 100,0,45 y');
 
 $off = Astro::Coords::Offset->new(0, 100, posang => 45);
 ($x, $y) = map {$_->arcsec()} $off->offsets_rotated();
-is(sprintf('%.1f', $x), 70.7, 'Rotated offset, 0,100,45 x');
-is(sprintf('%.1f', $y), 70.7, 'Rotated offset, 0,100,45 y');
+delta_ok( $x, 70.710678, 'Rotated offset, 0,100,45 x');
+delta_ok( $y, 70.710678, 'Rotated offset, 0,100,45 y');
 
 my $coords = Astro::Coords->new(type => 'J2000',
   ra => 1.2, dec => 0.22, name => 'Test');

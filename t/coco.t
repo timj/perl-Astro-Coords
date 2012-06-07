@@ -4,6 +4,7 @@
 
 use strict;
 use Test::More tests => 17;
+use Test::Number::Delta;
 
 require_ok('Astro::Coords');
 require_ok('Astro::Telescope');
@@ -54,12 +55,12 @@ is( $c->dec_app(format=>'s'), "-00:23:45.19", "Check geocentric apparent Dec");
 
 # Galactic
 my ($glong, $glat) = $c->glonglat();
-is( sprintf('%.8f',$glong->degrees), 2.61698924, "Check Galactic longitude");
-is( sprintf('%.8f',$glat->degrees), 43.95773251, "Check Galactic latitude");
+delta_ok( $glong->degrees, 2.61698924, "Check Galactic longitude");
+delta_ok( $glat->degrees, 43.95773251, "Check Galactic latitude");
 
 # Ecliptic coordinates
 my ($elong, $elat) = $c->ecllonglat();
-is( sprintf('%.6f',$elong->degrees), '228.984554',"Check ecliptic longitude for $elong");
-is( sprintf('%.8f',$elat->degrees), 17.70075206, "Check ecliptic latitude for $elat");
+delta_ok( $elong->degrees, 228.984554,"Check ecliptic longitude for $elong");
+delta_ok( $elat->degrees, 17.70075206, "Check ecliptic latitude for $elat");
 
 exit;
