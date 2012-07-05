@@ -74,6 +74,24 @@ sub new {
 
 =back
 
+=head2 Class Methods
+
+=over 4
+
+=item B<planets>
+
+Retuns a list of supported planet names.
+
+ @planets = Astro::Coords::Planet->planets();
+
+=cut
+
+sub planets {
+  return @PLANETS;
+}
+
+=back
+
 =head2 Accessor Methods
 
 =over 4
@@ -267,16 +285,6 @@ sub apply_offset {
   my $self = shift;
   warn "apply_offset: applying offset to planet position for a specific time.\n";
   return $self->SUPER::apply_offset(@_);
-}
-
-=item B<planets>
-
-Retuns a list of supported planet names.
-
-=cut
-
-sub planets {
-  return @PLANETS;
 }
 
 =back
