@@ -121,3 +121,5 @@ v0.13 - + Use Astro::PAL instead of Astro::SLA. The main driver being that
           object and return a new coordinate object (Graham Bell)
 
 v0.14   + Fix tests for long double perl. Build now requires Test::Number::Delta.
+
+v0.15   + Add planets() method to retrieve planet names and remove pluto (Graham Bell)
