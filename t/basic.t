@@ -1,6 +1,6 @@
 #!perl
 use strict;
-use Test::More tests => 98;
+use Test::More tests => 102;
 use Test::Number::Delta within => 1e-9;
 use Scalar::Util qw/ looks_like_number /;
 
@@ -313,6 +313,14 @@ if ($newbopp) {
 } else {
   ok(0, "Failed to create clone of elements object");
 }
+
+# Make sure we can get a list of planet names
+my @planets = Astro::Coords::Planet->planets();
+my %pl = map { lc($_) => undef } @planets;
+ok( exists $pl{jupiter}, "Jupiter in list of planets" );
+ok( exists $pl{sun}, "Sun in list of planets" );
+ok( exists $pl{moon}, "Moon in list of planets" );
+is( scalar @planets, 9, "Count the number of planets" );
 
 exit;
 
