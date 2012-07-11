@@ -2587,6 +2587,12 @@ repeatedly.
 
 Returns undef if the routine did not converge.
 
+WARNING: this method is overriden by one in Astro::Coords::Equatorial
+if there is no proper motion of parallax.  The overriding method assumes
+that the starting point has been accurately calculated and therefore
+does nothing.  As a result this method should not be called without
+a very good starting point in the case of equatorial coordinates.
+
 =cut
 
 sub _iterative_el {
