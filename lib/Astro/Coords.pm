@@ -2488,22 +2488,45 @@ sub _rise_set_time {
 
   # somewhere to store the times
   my @times;
+  my $period = $self->_sidereal_period();
+  my $mt = undef;
+  my $direction = $event || 1;
+  my $event_time;
 
-  # Calculate the set or rise time for both the previous and next meridian time
+  # Calculate the set or rise time for the meridian time in the direction
+  # in which we want to go, and then step the meridian time by one "day"
   # so that we can work out which set time to return. There is probably
   # an analytic short cut that can be used to decide whether the
   # correct set time will be related to the previous or next meridian
-  # time simply by calculating the meridian time once and shifting
-  # it by 24 hours
+  # time.
 
-  for my $n (-1, 1) {
+  for (0, 1) {
     # Calculate the transit time
-    print "Calculating " .($n == -1 ? "previous" : "next") . " meridian time\n"
+    print "Calculating " . (defined $mt ? 'stepped' :
+        ($direction == -1 ? "previous" : "next")) . " meridian time\n"
       if $DEBUG;
-    my $mt = $self->meridian_time( event => $n );
+
+    unless (defined $mt) {
+      $mt = $self->meridian_time( event => $direction );
+    }
+    else {
+      # Change direction if we wanted the nearest,
+      # or there was no event the way we tried,
+      # or we went the wrong way.
+      $direction = - $direction
+        if (! $event)
+        || (! defined $event_time)
+        || (($event_time->epoch() - $reftime->epoch()) * $event > 0);
+
+      if ($self->_isdt()) {
+        if ($direction > 0) {$mt->add(seconds => $period)}
+        else {          $mt->subtract(seconds => $period)};
+      } else {
+        $mt = $mt + $direction * $period;
+      }
+    }
 
     # First guestimate for the event
-    my $event_time;
     if ($rise) {
       $event_time = $mt - $ha_set;
     } else {
@@ -2516,19 +2539,23 @@ sub _rise_set_time {
     $event_time = ( $convok ? $self->datetime : undef );
     print "**** Failed to converge\n" if ($DEBUG && !$convok);
 
-    # and restore the reference date to reset the clock
-    $self->datetime( ( $havetime ? $reftime : undef ) );
-
     # store the event time
-    push(@times, $event_time) if defined $event_time;
+    if ($direction > 0) {
+      push(@times, $event_time) if defined $event_time;
+    } else {
+      unshift(@times, $event_time) if defined $event_time;
+    }
 
     print "Determined ".($rise ? "rise" : "set" ) . " time of ".
        (defined $event_time ? $event_time : 'undef')."\n"
        if $DEBUG;
   }
 
+  # and restore the reference date to reset the clock
+  $self->datetime( ( $havetime ? $reftime : undef ) );
+
   # choose a value
-  my $event_time;
+  $event_time = undef;
   if ($event == -1) {
     # We want the nearest time that is earlier than reference time
     # Start from the end and jump out when
@@ -2985,6 +3012,21 @@ sub _j2000_to_byyyy {
 
   }
   return ($rb, $db);
+}
+
+=item B<_sidereal_period>
+
+Returns the length of the source's "day" in seconds, i.e. how long it takes
+return to the same position in the sky.  This implementation
+returns one sidereal day, but it must be overriden for fast-moving
+objects such as the Sun and the Moon.
+
+To be used internally for rise / set time calculation.
+
+=cut
+
+sub _sidereal_period {
+  return 24 * 3600 * 365.2422/366.2422;
 }
 
 =back

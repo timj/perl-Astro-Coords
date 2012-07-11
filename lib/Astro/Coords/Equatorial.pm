@@ -752,9 +752,9 @@ sub _calc_mtime {
   else {
     # We went the wrong way.
     if ($dtime) {
-      $mtime->add(hours => 24 * $event * 365.2422/366.2422);
+      $mtime->add(seconds => $event * $self->_sidereal_period());
     } else {
-      $mtime = $mtime + (24 * 3600 * $event * 365.2422/366.2422);
+      $mtime = $mtime + ($event * $self->_sidereal_period());
     }
   }
   return $mtime;

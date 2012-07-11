@@ -344,6 +344,26 @@ sub _default_horizon {
   }
 }
 
+=item B<_sidereal_period>
+
+Returns the length of the source's "day" in seconds.
+
+=cut
+
+sub _sidereal_period {
+  my $self = shift;
+  my $name = lc($self->name);
+
+  if ($name eq 'sun') {
+    return 24 * 3600;
+  } elsif ($name eq 'moon') {
+    return 24 * 3600 * (1 + 1 / 29.53059);
+  }
+  else {
+    $self->SUPER::_sidereal_period();
+  }
+}
+
 =back
 
 =end __PRIVATE_METHODS__
