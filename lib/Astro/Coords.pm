@@ -2739,6 +2739,7 @@ sub _iterative_el {
 
   # Get the estimated time for this elevation
   my $time = $self->datetime;
+  my $epoch = $time->epoch();
 
   # now compare the requested elevation with the actual elevation for the
   # previously calculated rise time
@@ -2753,16 +2754,19 @@ sub _iterative_el {
     # use 1 minute for all except the moon
     my $inc = 60; # seconds
     $inc *= 10 if (defined $self->name && lc($self->name) eq 'moon');
+    my $maxinc = $inc * 10;
 
     my $sign = (($el <=> $refel) != $grad ? 1 : -1); # incrementing or decrementing time
     my $prevel; # previous elevation
+    my $prevepoch; # 'epoch' value of previous time
 
     # Indicate whether we have straddled the correct answer
     my $has_been_high;
     my $has_been_low;
+    my $has_straddled;
 
     # This is a very simple convergence algorithm.
-    # Newton-Raphson would be much faster given that the function
+    # Newton-Raphson is used until we straddle the value, given that the function
     # is almost linear for most elevations.
     while (abs($el-$refel) > $tol) {
       if (defined $prevel) {
@@ -2815,7 +2819,7 @@ sub _iterative_el {
 	# we can reverse as soon as the previous el and the current el
 	# are either side of the correct answer
 	my $reverse;
-	if ($has_been_low && $has_been_high) {
+	if ($has_straddled) {
 	  # we can abort if we are below the time resolution
 	  last if $inc < $smallinc;
 
@@ -2828,13 +2832,33 @@ sub _iterative_el {
 	    return undef;
 	  }
 
-	  # if we have not straddled, we reverse if the previous el
-	  # is closer than this el
-	  $reverse = 1 if abs($diff_to_prev) < abs($diff_to_curr);
+          my $deltat = $epoch - $prevepoch;
+          if (abs($deltat) > 0) {
+            # in the linear approximation
+            # we know the gradient
+            my $gradient = ($el - $prevel) / $deltat;
+            my $newinc = - ($diff_to_curr) / $gradient;
+            my $newsign = $newinc <=> 0;
+            $newinc = abs($newinc);
+
+            if ($newinc < $maxinc) {
+              $sign = $newsign;
+              $inc = $newinc;
+              $inc = $smallinc if $inc < $smallinc;
+            } else {
+              # The gradient approach might be running away,
+              # so duplicate the non-gradient behaviour instead.
+              $reverse = 1 if abs($diff_to_prev) < abs($diff_to_curr);
+            }
+          } else {
+            # if we have not straddled, we reverse if the previous el
+            # is closer than this el
+            $reverse = 1 if abs($diff_to_prev) < abs($diff_to_curr);
+          }
 	}
 
-	# if the increment is small, bounce
-
+	# Defer straddled test so we have one gradient-based step past straddling.
+        $has_straddled = $has_been_low && $has_been_high;
 
 	# reverse
 	if ( $reverse ) {
@@ -2845,10 +2869,6 @@ sub _iterative_el {
 	  $sign *= -1;
 	  # and use half the step size
 	  $inc /= 3;
-
-	  # in the linear approximation
-	  # we know the gradient
-
 	}
       }
 
@@ -2874,6 +2894,8 @@ sub _iterative_el {
       $el = $self->el;
       print "# New elevation: ". $self->el(format=>'deg')." \t@ ".$time->datetime." with delta $delta sec\n"
 	if $DEBUG;
+      $prevepoch = $epoch;
+      $epoch = $time->epoch();
     }
 
   }
