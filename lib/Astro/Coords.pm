@@ -2754,7 +2754,7 @@ sub _iterative_el {
     my $inc = 60; # seconds
     $inc *= 10 if (defined $self->name && lc($self->name) eq 'moon');
 
-    my $sign = ($el < $refel ? 1 : -1); # incrementing or decrementing time
+    my $sign = (($el <=> $refel) != $grad ? 1 : -1); # incrementing or decrementing time
     my $prevel; # previous elevation
 
     # Indicate whether we have straddled the correct answer
@@ -2844,7 +2844,7 @@ sub _iterative_el {
 	  # Change direction
 	  $sign *= -1;
 	  # and use half the step size
-	  $inc /= 2;
+	  $inc /= 3;
 
 	  # in the linear approximation
 	  # we know the gradient
