@@ -2460,6 +2460,7 @@ sub _rise_set_time {
   my $self = shift;
   my $rise = shift;
   my %opt = @_;
+  my $period = $self->_sidereal_period();
 
   # Calculate the HA required for setting
   my $ha_set = $self->ha_set( %opt, format=> 'radians' );
@@ -2474,6 +2475,7 @@ sub _rise_set_time {
   # and thence to a duration if required
   if ($self->_isdt()) {
     $ha_set = new DateTime::Duration( seconds => $ha_set );
+    $period = new DateTime::Duration( seconds => $period );
   }
 
   # Get the current time (do not modify it since we need to put it back)
@@ -2488,8 +2490,6 @@ sub _rise_set_time {
 
   # somewhere to store the times
   my @times;
-  my $period = $self->_sidereal_period();
-  my $mt = undef;
   my $direction = $event || 1;
   my $event_time;
 
@@ -2500,44 +2500,66 @@ sub _rise_set_time {
   # correct set time will be related to the previous or next meridian
   # time.
 
-  for (0, 1) {
-    # Calculate the transit time
-    print "Calculating " . (defined $mt ? 'stepped' :
-        ($direction == -1 ? "previous" : "next")) . " meridian time\n"
-      if $DEBUG;
+  # Calculate the transit time
+  print "Calculating " . ($direction == -1 ? "previous" : "next") .
+        " meridian time\n" if $DEBUG;
 
-    unless (defined $mt) {
-      $mt = $self->meridian_time( event => $direction );
-    }
-    else {
-      # Change direction if we wanted the nearest,
-      # or there was no event the way we tried,
-      # or we went the wrong way.
-      $direction = - $direction
-        if (! $event)
-        || (! defined $event_time)
-        || (($event_time->epoch() - $reftime->epoch()) * $event > 0);
+  my $mt = $self->meridian_time( event => $direction );
 
-      if ($self->_isdt()) {
-        if ($direction > 0) {$mt->add(seconds => $period)}
-        else {          $mt->subtract(seconds => $period)};
-      } else {
-        $mt = $mt + $direction * $period;
-      }
-    }
+  # First guestimate for the event
+  if ($rise) {
+    $event_time = $mt - $ha_set;
+  } else {
+    $event_time = $mt + $ha_set;
+  }
 
-    # First guestimate for the event
-    if ($rise) {
-      $event_time = $mt - $ha_set;
+  # Now converge about this value
+  $self->datetime( $event_time );
+  if ($self->_iterative_el( $refel, ($rise ? 1 : -1) )) {
+    $event_time = $self->datetime();
+  } else {
+    $event_time = undef;
+    print "**** Failed to converge\n" if $DEBUG;
+  }
+
+  # store the event time
+  if ($direction > 0) {
+    push(@times, $event_time) if defined $event_time;
+  } else {
+    unshift(@times, $event_time) if defined $event_time;
+  }
+
+  print "Determined ".($rise ? "rise" : "set" ) . " time of ".
+     (defined $event_time ? $event_time : 'undef')."\n"
+     if $DEBUG;
+
+
+  if (1) {
+    # Change direction if we wanted the nearest,
+    # or there was no event the way we tried,
+    # or we went the wrong way.
+    $direction = - $direction
+      if (! $event)
+      || (! defined $event_time)
+      || (($event_time->epoch() - $reftime->epoch()) * $event > 0);
+
+    print 'Calculating  meridian time stepped ' .
+          ($direction == -1 ? 'back' : 'forward') . "\n" if $DEBUG;
+
+    if ($direction > 0) {
+      $event_time = $event_time + $period;
     } else {
-      $event_time = $mt + $ha_set;
+      $event_time = $event_time - $period;
     }
 
     # Now converge about this value
     $self->datetime( $event_time );
-    my $convok = $self->_iterative_el( $refel, ($rise ? 1 : -1) );
-    $event_time = ( $convok ? $self->datetime : undef );
-    print "**** Failed to converge\n" if ($DEBUG && !$convok);
+    if ($self->_iterative_el( $refel, ($rise ? 1 : -1) )) {
+      $event_time = $self->datetime();
+    } else {
+      $event_time = undef;
+      print "**** Failed to converge\n" if $DEBUG;
+    }
 
     # store the event time
     if ($direction > 0) {
