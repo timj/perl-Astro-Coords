@@ -2468,6 +2468,8 @@ sub _rise_set_time {
 
   # extract the event information
   my $event = $self->_extract_event( %opt );
+  croak "Unrecognized event specifier in set_time"
+        unless grep {$_ == $event} (-1, 0, 1);
 
   # and convert to seconds
   $ha_set *= Astro::PAL::DR2S;
@@ -2478,9 +2480,6 @@ sub _rise_set_time {
     $period = new DateTime::Duration( seconds => $period );
   }
 
-  # Get the current time (do not modify it since we need to put it back)
-  my $reftime = $self->datetime;
-
   # Determine whether we have to remember the cache
   my $havetime = $self->has_datetime;
 
@@ -2489,9 +2488,61 @@ sub _rise_set_time {
 		 $self->_default_horizon );
 
   # somewhere to store the times
-  my @times;
+  my @event;
   my $direction = $event || 1;
   my $event_time;
+
+  # Do not bother with iterative method for comparisons if the
+  # values differ by more than this amount.  (Ideally this would
+  # be tuned by source depending on how fast it moves.)
+  my $safety_seconds = 3600;
+
+  # To be able to defer interative calculations until necessary,
+  # we need a data structure which can store the time and whether
+  # it has been iterated.  For convenience we can add the epoch and
+  # end up with an arrayref like:
+  #
+  #   $event = [$datetime_or_timepiece, $epoch_seconds, $iterated]
+  #
+  # So save the reference time in this format:
+  #
+  # Get the current time (do not modify it since we need to put it back)
+  my $reftime = $self->datetime;
+  $reftime = [$reftime, $reftime->epoch(), 1];
+
+  # And define 2 convient subroutines for these arrayrefs:
+  #
+  # Subroutine to perform the iteration on the event and
+  # check for convergence.
+  my $iterate = sub {
+    my $estimate = shift;
+    return if $estimate->[2];
+    $self->datetime( $estimate->[0] );
+    if ($self->_iterative_el( $refel, ($rise ? 1 : -1) )) {
+      my $dt = $self->datetime();
+      $estimate->[0] = $dt;
+      $estimate->[1] = $dt->epoch();
+      $estimate->[2] = 1;
+    } else {
+      print "**** Failed to converge\n" if $DEBUG;
+      $estimate->[0] = undef;
+      $estimate->[1] = undef;
+      $estimate->[2] = 1;
+    }
+  };
+
+  # Subroutine to compare two event arrayrefs.  Iterate them
+  # if they are within $safety_seconds.
+  my $compare = sub {
+    my ($a, $b) = @_;
+    return undef unless (defined $a->[0] and defined $b->[0]);
+    return $a->[1] <=> $b->[1] if (abs($b->[1] - $a->[1]) > $safety_seconds)
+                               or ($b->[2] && $a->[2]);
+    $iterate->($a) unless $a->[2];
+    $iterate->($b) unless $b->[2];
+    return undef unless (defined $a->[0] and defined $b->[0]);
+    return $a->[1] <=> $b->[1];
+  };
 
   # Calculate the set or rise time for the meridian time in the direction
   # in which we want to go, and then step the meridian time by one "day"
@@ -2513,35 +2564,22 @@ sub _rise_set_time {
     $event_time = $mt + $ha_set;
   }
 
-  # Now converge about this value
-  $self->datetime( $event_time );
-  if ($self->_iterative_el( $refel, ($rise ? 1 : -1) )) {
-    $event_time = $self->datetime();
-  } else {
-    $event_time = undef;
-    print "**** Failed to converge\n" if $DEBUG;
-  }
+  $event[0] = [$event_time, $event_time->epoch(), 0];
 
-  # store the event time
-  if ($direction > 0) {
-    push(@times, $event_time) if defined $event_time;
-  } else {
-    unshift(@times, $event_time) if defined $event_time;
-  }
-
-  print "Determined ".($rise ? "rise" : "set" ) . " time of ".
-     (defined $event_time ? $event_time : 'undef')."\n"
-     if $DEBUG;
-
+  print "Determined approximate " . ($rise ? "rise" : "set") . " time of ".
+     $event_time . "\n" if $DEBUG;
 
   if (1) {
     # Change direction if we wanted the nearest,
-    # or there was no event the way we tried,
-    # or we went the wrong way.
-    $direction = - $direction
-      if (! $event)
-      || (! defined $event_time)
-      || (($event_time->epoch() - $reftime->epoch()) * $event > 0);
+    # or there was no real event the way we tried,
+    # or we went the right way.
+    if (! $event) {
+      $direction = - $direction
+    } else {
+      my $cmp = $compare->($event[0], $reftime);
+      $direction = - $direction if (! defined $cmp)
+                                or ($cmp * $event > 0);
+    }
 
     print 'Calculating  meridian time stepped ' .
           ($direction == -1 ? 'back' : 'forward') . "\n" if $DEBUG;
@@ -2552,59 +2590,93 @@ sub _rise_set_time {
       $event_time = $event_time - $period;
     }
 
-    # Now converge about this value
-    $self->datetime( $event_time );
-    if ($self->_iterative_el( $refel, ($rise ? 1 : -1) )) {
-      $event_time = $self->datetime();
-    } else {
-      $event_time = undef;
-      print "**** Failed to converge\n" if $DEBUG;
-    }
+    $event[1] = [$event_time, $event_time->epoch(), 0];
 
     # store the event time
-    if ($direction > 0) {
-      push(@times, $event_time) if defined $event_time;
-    } else {
-      unshift(@times, $event_time) if defined $event_time;
+    if ($direction < 0) {
+      @event = reverse @event;
     }
 
-    print "Determined ".($rise ? "rise" : "set" ) . " time of ".
-       (defined $event_time ? $event_time : 'undef')."\n"
-       if $DEBUG;
+    print "Determined approximate " . ($rise ? "rise" : "set") . " time of ".
+       $event_time . "\n" if $DEBUG;
   }
-
-  # and restore the reference date to reset the clock
-  $self->datetime( ( $havetime ? $reftime : undef ) );
 
   # choose a value
   $event_time = undef;
-  if ($event == -1) {
-    # We want the nearest time that is earlier than reference time
-    # Start from the end and jump out when
-    for my $t (reverse @times) {
-      if ($t->epoch <= $reftime->epoch) {
-	$event_time = $t;
-	last;
-      }
-    }
-  } elsif ($event == 1) {
-    # start from the oldest until we hit a new time
-    for my $t (@times) {
-      if ($t->epoch >= $reftime->epoch) {
-	$event_time = $t;
-	last;
-      }
-    }
-  } elsif ($event == 0) {
-    # calculate the diff
-    my %diffs = map { abs( $reftime->epoch - $_->epoch), $_ } @times;
-    my @sort = sort { $a <=> $b } keys %diffs;
-    $event_time = $diffs{$sort[0]};
 
+  unless ($event) {
+    # Need to find the "nearest" event.
+    # First check neither is already undefined.
+    unless (defined $event[0]->[0] and defined $event[1]->[0]) {
+      if (defined $event[0]->[0]) {
+        $iterate->($event[0]);
+        $event_time = $event[0]->[0];
+      }
+      elsif (defined $event[1]->[0]) {
+        $iterate->($event[1]);
+        $event_time = $event[1]->[0];
+      }
+    } else {
+      # Otherwise we can safely compute the differences.
+      my @diff = map {abs($_->[1] - $reftime->[1])} @event;
+      if (abs($diff[0] - $diff[1]) < $safety_seconds) {
+        # Too close to call based on the estimated times, so iterate both.
+        $iterate->($_) foreach grep {not $_->[2]} @event;
+
+        if (defined $event[0]->[0]) {
+          if (defined $event[1]->[0]) {
+            # Both events were real, need to compare again.
+            @diff = map {abs($_->[1] - $reftime->[1])} @event;
+            $event_time = $diff[0] < $diff[1]
+                        ? $event[0]->[0]
+                        : $event[1]->[0];
+          } else {
+            # Only the first event was real, so return it.
+            $event_time = $event[0]->[0];
+          }
+        }
+        elsif (defined $event[1]->[0]) {
+          # Only the second event was real, so return it.
+          $event_time = $event[1]->[0];
+        }
+      }
+      else {
+        # Differences were sufficiently close to decide immediately.
+        my $closer = $diff[0] < $diff[1] ? 0 : 1;
+        $iterate->($event[$closer]);
+
+        # However we need to check if it wasn't real, and try the other one.
+        unless (defined $event[$closer]->[0]) {
+          $closer = 1 - $closer;
+          $iterate->($event[$closer]);
+        }
+
+        # If the other one wasn't real either, we want
+        # to return undef anyway, so no need to check at this point.
+        $event_time = $event[$closer]->[0];
+      }
+    }
   } else {
-    croak "Unrecognized event specifier in set_time";
+    # For "before", we want the nearest time that is earlier than the
+    # reference time, so reverse the list to start from the end
+    # the end and jump out when we find an event that is before the
+    # reference time.  For "after" we do not reverse the list.
+    @event = reverse @event if $event == -1;
+
+    for my $t (@event) {
+      next unless defined $t->[0];
+      my $cmp = $compare->($t, $reftime);
+      next unless defined $cmp;
+      if ($cmp == $event or $cmp == 0) {
+        $iterate->($t) unless $t->[2];
+        $event_time = $t->[0];
+        last;
+      }
+    }
   }
 
+  # and restore the reference date to reset the clock
+  $self->datetime( ( $havetime ? $reftime->[0] : undef ) );
 
   return $event_time;
 }
