@@ -776,13 +776,13 @@ sub _iterative_el {
   return $self->SUPER::_iterative_el(@_)
     if $self->parallax() or $self->pm();
 
-  # Possible check that the elevation is indeed correct:
-  # my ($refel, undef) = @_;
-  # my $el = $self->el();
-  # my $tol = 20 * Astro::PAL::DAS2R;
-  #
-  # return $self->SUPER::_iterative_el(@_)
-  #   if (abs($el - $refel) > $tol);
+  # Check that the elevation is indeed correct:
+  # (Should not be necessary, remove if it wastes too much time.)
+  my ($refel, undef) = @_;
+  my $el = $self->el();
+  my $tol = 30 * Astro::PAL::DAS2R;
+  return $self->SUPER::_iterative_el(@_)
+      if (abs($el - $refel) > $tol);
 
   return 1;
 }

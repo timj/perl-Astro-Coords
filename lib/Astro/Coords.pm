@@ -108,7 +108,7 @@ use Carp;
 use vars qw/ $DEBUG /;
 $DEBUG = 0;
 
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 
 use Math::Trig qw/ acos /;
 use Astro::PAL ();
