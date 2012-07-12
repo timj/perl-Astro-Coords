@@ -2569,37 +2569,35 @@ sub _rise_set_time {
   print "Determined approximate " . ($rise ? "rise" : "set") . " time of ".
      $event_time . "\n" if $DEBUG;
 
-  if (1) {
-    # Change direction if we wanted the nearest,
-    # or there was no real event the way we tried,
-    # or we went the right way.
-    if (! $event) {
-      $direction = - $direction
-    } else {
-      my $cmp = $compare->($event[0], $reftime);
-      $direction = - $direction if (! defined $cmp)
-                                or ($cmp * $event > 0);
-    }
-
-    print 'Calculating  meridian time stepped ' .
-          ($direction == -1 ? 'back' : 'forward') . "\n" if $DEBUG;
-
-    if ($direction > 0) {
-      $event_time = $event_time + $period;
-    } else {
-      $event_time = $event_time - $period;
-    }
-
-    $event[1] = [$event_time, $event_time->epoch(), 0];
-
-    # store the event time
-    if ($direction < 0) {
-      @event = reverse @event;
-    }
-
-    print "Determined approximate " . ($rise ? "rise" : "set") . " time of ".
-       $event_time . "\n" if $DEBUG;
+  # Change direction if we wanted the nearest,
+  # or there was no real event the way we tried,
+  # or we went the right way.
+  if (! $event) {
+    $direction = - $direction
+  } else {
+    my $cmp = $compare->($event[0], $reftime);
+    $direction = - $direction if (! defined $cmp)
+                              or ($cmp * $event > 0);
   }
+
+  print 'Calculating  meridian time stepped ' .
+        ($direction == -1 ? 'back' : 'forward') . "\n" if $DEBUG;
+
+  if ($direction > 0) {
+    $event_time = $event_time + $period;
+  } else {
+    $event_time = $event_time - $period;
+  }
+
+  $event[1] = [$event_time, $event_time->epoch(), 0];
+
+  # store the event time
+  if ($direction < 0) {
+    @event = reverse @event;
+  }
+
+  print "Determined approximate " . ($rise ? "rise" : "set") . " time of ".
+     $event_time . "\n" if $DEBUG;
 
   # choose a value
   $event_time = undef;
