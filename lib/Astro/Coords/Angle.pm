@@ -43,7 +43,7 @@ use overload
 # Package Global variables
 use vars qw/ $VERSION /;
 
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 =head1 METHODS
 
@@ -111,8 +111,9 @@ sub new {
   # Allow for inheritance
   my $rad = $class->_cvt_torad($input_ang, $args{units});
 
-  croak "Unable to decode supplied angle ('$input_ang')"
-    unless defined $rad;
+  croak "Unable to decode supplied angle (".
+    (defined $input_ang ? "'$input_ang'" : "<undef>").")"
+      unless defined $rad;
 
   # Create the object
   my $ang = bless {
