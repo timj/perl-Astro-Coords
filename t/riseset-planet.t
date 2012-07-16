@@ -6,7 +6,7 @@ use Test::More tests => 500 * 2;
 use Test::Number::Delta within => 3;
 use Astro::Coords;
 use Astro::Telescope;
-use DateTime;
+use DateTime 0.76;
 
 my $i = 0;
 

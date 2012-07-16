@@ -35,7 +35,7 @@ my $build = Module::Build->new
    author => [
               'Tim Jenness <t.jenness@jach.hawaii.edu>',
              ],
-   dist_version => '0.16',
+   dist_version => '0.17',
    meta_merge => {
                resources =>  {
                               repository => "git://github.com/timj/perl-Astro-Coords.git",
@@ -47,7 +47,7 @@ my $build = Module::Build->new
                 'Astro::PAL' => 0,
                 'Time::Piece' => 1.02,
                 'Astro::Telescope' => 0.71,
-                'DateTime' => 0,
+                'DateTime' => 0.76,
                },
    configure_requires => {
                           "Module::Build" => 0.30,

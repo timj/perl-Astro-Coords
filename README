@@ -125,3 +125,5 @@ v0.14   + Fix tests for long double perl. Build now requires Test::Number::Delta
 v0.15   + Add planets() method to retrieve planet names and remove pluto (Graham Bell)
 
 v0.16   + Massive speed up in rise/set time calculation (Graham Bell)
+
+v0.17   + Require DateTime version 0.76 to avoid problems with rise/set test scripts.
