@@ -185,7 +185,7 @@ sub _cvt_torad {
   my $rad = $self->SUPER::_cvt_torad( $input, $unt );
 
   # scale if we had sexagesimal or hour as units
-  if ($units =~ /^[sh]/) {
+  if (defined $rad && $units =~ /^[sh]/) {
     $rad *= 15;
   }
 
