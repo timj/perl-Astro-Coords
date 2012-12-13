@@ -108,7 +108,7 @@ use Carp;
 use vars qw/ $DEBUG /;
 $DEBUG = 0;
 
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 
 use Math::Trig qw/ acos /;
 use Astro::PAL ();
@@ -2833,10 +2833,11 @@ sub _iterative_el {
 	  }
 
           my $deltat = $epoch - $prevepoch;
-          if (abs($deltat) > 0) {
+          my $deltael = $el - $prevel;
+          if (abs($deltat) > 0 and abs($deltael) > 0) {
             # in the linear approximation
             # we know the gradient
-            my $gradient = ($el - $prevel) / $deltat;
+            my $gradient = $deltael / $deltat;
             my $newinc = - ($diff_to_curr) / $gradient;
             my $newsign = $newinc <=> 0;
             $newinc = abs($newinc);
