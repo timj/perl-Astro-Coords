@@ -338,12 +338,15 @@ time to be used on subsequent calls.
 
   $c->datetime( undef );
 
-If no argument is specified, or C<usenow> is set to true, an object
+If no argument is specified and no Date/Time object had already been
+supplied, or C<usenow> is set to true, an object
 referring to the current time (GMT/UT) is returned. This object may be
 either a C<Time::Piece> object or a C<DateTime> object depending on
 current implementation (but in modern versions it will be a
-C<DateTime> object). If a new argument is supplied C<usenow> is always
-set to false.
+C<DateTime> object). If a Date/Time object had already been specified
+then the object returned will be of the same type as the supplied
+object (C<DateTime> or C<Time::Piece>).
+If a new argument is supplied C<usenow> is always set to false.
 
 A copy of the input argument is created, guaranteeing a UTC representation.
 
