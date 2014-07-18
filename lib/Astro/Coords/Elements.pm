@@ -267,7 +267,7 @@ sub array {
 =item B<type>
 
 Returns the generic type associated with the coordinate system.
-For this class the answer is always "RADEC".
+For this class the answer is always "ELEMENTS".
 
 This is used to aid construction of summary tables when using
 mixed coordinates.
