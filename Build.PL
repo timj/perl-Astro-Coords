@@ -45,7 +45,7 @@ my $build = Module::Build->new
    requires => {
                 'Scalar::Util' => 1.13,
                 'Astro::PAL' => 0,
-                'Time::Piece' => 1.02,
+                'Time::Piece' => 1.10,
                 'Astro::Telescope' => 0.71,
                 'DateTime' => 0.76,
                },
