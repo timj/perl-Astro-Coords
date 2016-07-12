@@ -159,7 +159,7 @@ sub new {
       # Split on decimal point
       my ($date, $frac) = split(/\./,$epoch,2);
       $frac = "0.". $frac; # preserve as decimal fraction
-      my $format = '%Y %B %d';
+      my $format = '%Y %b %d';
       #print "EPOCH : $epoch and $date and $frac\n";
       my $obj = Time::Piece->strptime($date, $format);
       my $tzoffset = $obj->tzoffset;
