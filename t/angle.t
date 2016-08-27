@@ -46,6 +46,7 @@ delta_ok($ang->hours, 12, "compare hour to hour");
 my $ra = new Astro::Coords::Angle::Hour( '12h13m45.6s', units => 'sex',
 				    range => 'PI'
  );
+$ra->str_ndp(1);
 
 is("$ra", '-11:46:14.4', "hour angle -12 to +12");
 isa_ok( $ra, "Astro::Coords::Angle::Hour");
