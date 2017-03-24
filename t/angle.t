@@ -1,6 +1,6 @@
 #!perl
 use strict;
-use Test::More tests => 19;
+use Test::More tests => 20;
 use Test::Number::Delta within => 1e-9;
 
 require_ok('Astro::Coords::Angle');
@@ -28,6 +28,9 @@ $ang->str_ndp( 5 );
 is( "$ang", "45d00m00.00000s", "dms stringification");
 
 delta_ok( $ang->arcsec, (45 * 60 * 60 ), 'arcsec');
+
+$ang = new Astro::Coords::Angle(45, units => 'deg');
+delta_ok($ang->negate()->degrees(), -45);
 
 # use string form to recreate to test parser
 my $ang2 = new Astro::Coords::Angle( $ang->string, units=>'sex',range=>'PI');
