@@ -43,7 +43,7 @@ use overload
 # Package Global variables
 use vars qw/ $VERSION /;
 
-$VERSION = '0.03';
+$VERSION = '0.19';
 
 =head1 METHODS
 

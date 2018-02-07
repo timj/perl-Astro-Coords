@@ -52,7 +52,7 @@ use warnings;
 use warnings::register;
 use Carp;
 
-our $VERSION = '0.07';
+our $VERSION = '0.19';
 
 use Astro::PAL ();
 use base qw/ Astro::Coords /;

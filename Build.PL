@@ -31,11 +31,11 @@ my $build = Module::Build->new
   (
    module_name => 'Astro::Coords',
    abstract_from => $file,
-   license  => 'gpl',
+   license  => 'gpl3',
    author => [
               'Tim Jenness <t.jenness@jach.hawaii.edu>',
              ],
-   dist_version => '0.18',
+   dist_version => '0.19',
    meta_merge => {
                resources =>  {
                               repository => "git://github.com/timj/perl-Astro-Coords.git",
