@@ -1,7 +1,10 @@
 Build
-MYMETA.yml
+MYMETA.*
+META.*
 Makefile
 blib
 _build
 Makefile.old
 pm_to_blib
+*~
+.*.swp
