@@ -218,6 +218,8 @@ of numbers in order of sign, hour, min, sec, frac.
 
 Note that the number of decimal places is an argument.
 
+=back
+
 =cut
 
 sub _r2f {
