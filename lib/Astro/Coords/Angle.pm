@@ -455,7 +455,7 @@ sub in_format {
   } elsif ($format =~ /^arcs/ || $format eq 'as') {
     return $self->arcsec;
   } elsif ($format =~ /^a/) {
-    return $self->components( 2 );
+    return $self->components($self->str_ndp);
   } else {
     warnings::warnif("Unsupported format '$format'. Returning radians.");
     return $self->radians;
