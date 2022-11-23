@@ -235,7 +235,8 @@ setting of C<str_ndp>, but is constrained by an optional argument:
 
   @comp = $ang->components( $ndp );
 
-Default resolution is 5 decimal places.
+Default resolution is 5 decimal places.  The limit is 9 to avoid
+overflowing the results from palDr2af or palDr2tf.
 
 In scalar context, returns a reference to an array.
 
@@ -251,6 +252,13 @@ sub components {
   # Convert to components using PAL. COCO uses 4 dp for high
   # resolution.
   $res = 5 unless defined $res;
+
+  # Limit $res to avoid overflowing results from palDr2af or palDr2tf.
+  if ($res > 9) {
+    warnings::warnif("Excess dp ($res) requested, limiting to 9");
+    $res = 9;
+  }
+
   my @dmsf = $self->_r2f( $res );
 
   # Combine the fraction with the seconds unless no decimal places
