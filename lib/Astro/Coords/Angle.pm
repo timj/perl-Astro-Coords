@@ -774,6 +774,9 @@ Note that the number of decimal places is an argument.
 sub _r2f {
   my $self = shift;
   my $res = shift;
+
+  warnings::warnif("More than 9 dp requested ($res), result from palDr2af likely to overflow in fractional part") if $res > 9;
+
   my ($sign, @dmsf) = Astro::PAL::palDr2af($res, $self->radians);
   return ($sign, @dmsf);
 }
