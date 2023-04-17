@@ -40,7 +40,7 @@ use base qw/ Astro::Coords::Angle /;
 # Package Global variables
 use vars qw/ $VERSION /;
 
-$VERSION = '0.20';
+$VERSION = '0.21';
 
 =head1 METHODS
 
