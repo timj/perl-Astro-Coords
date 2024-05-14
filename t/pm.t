@@ -22,7 +22,7 @@ print "# Epoch : J". Astro::PAL::palEpj( $t->mjd)."\n";
 # RA/Dec in J2000 at 2004.1457:  6 14 1.777  +15 9 49.17
 # Proper motion: 739, -1248 milliarcsec/yr
 # COCO says                      6 14 1.788  +15 9 49.18
-my $fs = new Astro::Coords( 
+my $fs = new Astro::Coords(
                            name => "LHS216",
                            ra => '6 14 1.584',
                            dec => '15 9 54.36',

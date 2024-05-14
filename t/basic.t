@@ -141,7 +141,7 @@ is( $cal->type, "CAL");
 ok( $cal->isObservable );
 
 
-# Now come up with some coordinates that are not 
+# Now come up with some coordinates that are not
 # always observable
 
 print "# Observability\n";

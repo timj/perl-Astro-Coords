@@ -19,7 +19,7 @@ my $end = $start + ONE_DAY;
 my $inc = ONE_HOUR;
 
 my @results = $c->calculate( start=> $start,
-                             end => $end, 
+                             end => $end,
                              inc => $inc,
                              units => 'deg');
 

@@ -10,7 +10,7 @@ use Time::Piece qw/ :override /;
 use DateTime;
 use DateTime::TimeZone;
 
-# Need this since the constants from Astro::Coords will 
+# Need this since the constants from Astro::Coords will
 # not be defined if we only require
 BEGIN { use_ok('Astro::Coords') };
 require_ok('Astro::PAL');
@@ -214,7 +214,7 @@ for my $targ (sort keys %data) {
 
       # Want the answer in decimal hours so that rounding can be
       # implemented
-      my $dechr = $time->hour + ( $time->minute() / 60 ) + 
+      my $dechr = $time->hour + ( $time->minute() / 60 ) +
         ( $time->second() / 3600 );
 
       # force to 1 decimal place and then convert back to a number

@@ -16,10 +16,10 @@ my %test = (
                            dec  => '+06 59 23.34',
                            type => 'J2000',
                           },
-            planet      => { 
-                            planet => 'mars' 
+            planet      => {
+                            planet => 'mars'
                            },
-            elements    => { 
+            elements    => {
                             elements => {
                                      # from JPL horizons
                                      EPOCH => 52440.0000,
@@ -51,7 +51,7 @@ for my $chash (keys %test) {
   #print $c->status;
 
   # now instantiate an AZEL object
-  my $azel = new Astro::Coords( az => $c->az(format => 'rad'), 
+  my $azel = new Astro::Coords( az => $c->az(format => 'rad'),
                                 el => $c->el(format => 'rad'),
                                 units => 'radians');
 

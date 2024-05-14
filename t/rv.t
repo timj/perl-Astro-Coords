@@ -82,7 +82,7 @@ SKIP: {
   skip "Need Astro::Telescope > v0.50", 2
     unless $Astro::Telescope::VERSION > 0.5;
 
-  $c = new Astro::Coords( 
+  $c = new Astro::Coords(
                          ra => '3h27m36',
                          dec => '-63 18 47',
                          epoch => 1975.0,
