@@ -444,6 +444,26 @@ sub offsets_rotated {
   return map {new Astro::Coords::Angle($_, units => 'arcsec')} ($xr, $yr);
 }
 
+=item B<distance>
+
+Calculate the total distance implied by the offsets.  Returned as an
+C<Astro::Coords::Angle> object.
+
+  $dist = $offset->distance;
+
+=cut
+
+sub distance {
+  my $self = shift;
+  my $offset = shift;
+
+  my ($x, $y) = map {$_->arcsec()} $self->offsets();
+
+  my $dist = ($x ** 2 + $y ** 2) ** 0.5;
+
+  return Astro::Coords::Angle->new($dist, units => 'arcsec');
+}
+
 =back
 
 =head1 SEE ALSO
