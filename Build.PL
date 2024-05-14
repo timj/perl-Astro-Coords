@@ -24,7 +24,7 @@ use File::Spec;
 # USA
 
 my $file = File::Spec->catfile(File::Spec->curdir, "lib", "Astro",
-			       "Coords.pm");
+                               "Coords.pm");
 
 # Set it up.
 my $build = Module::Build->new

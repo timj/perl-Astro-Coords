@@ -65,8 +65,8 @@ sub new {
   return undef unless exists $PLANET{$planet};
 
   bless { planet => $planet,
-	  diameter => undef,
-	}, $class;
+          diameter => undef,
+        }, $class;
 
 }
 
@@ -137,7 +137,7 @@ types of coordinates.
 sub array {
   my $self = shift;
   return ($self->planet, undef, undef,
-	  undef, undef, undef, undef, undef, undef, undef, undef);
+          undef, undef, undef, undef, undef, undef, undef, undef);
 }
 
 =item B<type>
