@@ -41,9 +41,7 @@ use overload
   fallback => 1;
 
 # Package Global variables
-use vars qw/ $VERSION /;
-
-$VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 METHODS
 

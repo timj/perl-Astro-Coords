@@ -38,9 +38,7 @@ use Astro::PAL;
 use base qw/ Astro::Coords::Angle /;
 
 # Package Global variables
-use vars qw/ $VERSION /;
-
-$VERSION = '0.21';
+our $VERSION = '0.22';
 
 =head1 METHODS
 
