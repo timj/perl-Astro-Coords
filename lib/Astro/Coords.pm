@@ -1877,7 +1877,7 @@ sub redshift {
   } else {
     my $rv = $self->rv;
     # 1% of light speed
-    if ( $rv > ( 0.01 * CLIGHT) ) {
+    if ( $rv < ( 0.01 * CLIGHT) ) {
       my $vopt = $rv / ( 1 - ( $rv / CLIGHT ) );
       return ( $vopt / CLIGHT );
     } else {
