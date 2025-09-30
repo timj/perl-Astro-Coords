@@ -1675,11 +1675,11 @@ sub _local_mtcalc {
   # Now calculate the offset from the RA of the source.
   # Note that RA should be apparent RA and so the time should
   # match the actual time stored in the object.
-  # Make sure the LST and Apparent RA are -PI to +PI
+  # Make sure the LST and Apparent RA difference is -PI to +PI
   # so that we do not jump whole days
-  my $lst = Astro::PAL::palDrange($self->_lst);
-  my $ra_app = Astro::PAL::palDrange( $self->ra_app );
-  my $offset = $ra_app - $lst;
+  my $lst = $self->_lst;
+  my $ra_app = $self->ra_app;
+  my $offset = Astro::PAL::palDrange( $ra_app - $lst );
 
   # This is in radians. Need to convert it to seconds
   my $offset_sec = $offset * Astro::PAL::DR2S;
